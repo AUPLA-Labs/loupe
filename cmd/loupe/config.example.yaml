@@ -1,0 +1,25 @@
+# Loupe's settings. This is all a new install needs; every other setting has
+# a default. Docs: https://github.com/AUPLA-Labs/loupe/tree/main/docs
+# Restart Loupe after editing: sudo systemctl restart loupe
+
+# Where your reverse proxy sends traffic. Point it here; setups for each
+# proxy: https://github.com/AUPLA-Labs/loupe/blob/main/docs/proxy.md
+listen: "{{LISTEN}}"
+
+# The site Loupe protects. Visitors that pass go on to it.
+backend: "{{BACKEND}}"
+
+# Where Loupe keeps its files: secret, users, lists, events.
+data_dir: "/var/lib/loupe"
+
+# Which proxies may tell Loupe the visitor's address, and in which header.
+# For Cloudflare, Docker or a proxy on another machine, see docs/proxy.md.
+proxy:
+  trusted: [loopback]
+  client_ip_header: X-Forwarded-For
+
+admin:
+  # The dashboard. On every interface, but it only answers the networks in
+  # allow. Add yours, e.g. Tailscale's 100.64.0.0/10 or a VPN's range.
+  listen: "{{ADMIN_LISTEN}}"
+  allow: [loopback, private]

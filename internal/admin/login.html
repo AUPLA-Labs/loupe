@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Sign in · Loupe Console</title>
+<link rel="icon" href="icons/favicon.ico" sizes="48x48">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script>
+// Same theme preference the console stores, so the two never disagree.
+try { const t = JSON.parse(localStorage.getItem('loupe.theme')); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch {}
+</script>
+<style>
+@font-face {
+  font-family: 'Hubot Sans';
+  font-style: normal; font-weight: 200 900; font-display: swap;
+  src: url('fonts/hubotsans.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Mona Sans';
+  font-style: normal; font-weight: 200 900; font-display: swap;
+  src: url('fonts/monasans.woff2') format('woff2');
+}
+:root {
+  --font-ui:   'Hubot Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-read: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --bg:        #F7F5F2;
+  --surface:   #FFFFFF;
+  --surface-2: #F5F2EE;
+  --border:    #E5E0D8;
+  --border-2:  #D6CFC4;
+  --text:      #0C0C0C;
+  --text-2:    #45423D;
+  --muted:     #787470;
+  --accent:    #9A7848;
+  --ink:       #0C0C0C;
+  --on-ink:    #FFFFFF;
+  --focus:     #2a78d6;
+  --err-text:  #B42318;
+  --err-bg:    #d03b3b14;
+  --err-line:  #d03b3b40;
+  --shadow-lg: 0 12px 40px rgba(20,16,8,.10), 0 2px 6px rgba(20,16,8,.05);
+  --r:         10px;
+  --r-sm:      6px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15130F; --surface: #1D1B16; --surface-2: #24211B; --border: #343026; --border-2: #464034;
+    --text: #F1EDE4; --text-2: #C8C2B4; --muted: #948D7E; --accent: #C9A15F; --ink: #F1EDE4; --on-ink: #15130F;
+    --focus: #5598e7; --err-text: #F28B82; --err-bg: #e6676717; --err-line: #e6676745;
+    --shadow-lg: 0 12px 40px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15130F; --surface: #1D1B16; --surface-2: #24211B; --border: #343026; --border-2: #464034;
+  --text: #F1EDE4; --text-2: #C8C2B4; --muted: #948D7E; --accent: #C9A15F; --ink: #F1EDE4; --on-ink: #15130F;
+  --focus: #5598e7; --err-text: #F28B82; --err-bg: #e6676717; --err-line: #e6676745;
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+body {
+  min-height: 100vh; display: grid; place-items: center; padding: 32px 16px;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
+    var(--bg);
+  color: var(--text);
+  font: 13px/1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+input { font-family: var(--font-read); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+
+.wrap { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 22px; animation: rise .28s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .wrap { animation: none; } }
+
+.brand { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.mark { display: block; height: 43px; width: auto; color: var(--text); }
+.brand-sub { font-size: 11.5px; color: var(--muted); letter-spacing: .04em; font-family: var(--font-read); }
+
+.card {
+  width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  box-shadow: var(--shadow-lg); padding: 26px 24px 24px; display: flex; flex-direction: column; gap: 16px;
+}
+.card h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+.card .lede { font-size: 12.5px; color: var(--muted); margin-top: 2px; font-family: var(--font-read); }
+
+.alert {
+  display: flex; gap: 9px; align-items: flex-start; padding: 9px 11px; border-radius: var(--r-sm);
+  background: var(--err-bg); border: 1px solid var(--err-line); color: var(--err-text); font-size: 12.5px;
+  font-family: var(--font-read);
+}
+.alert svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: var(--text-2); font-family: var(--font-read); }
+.field input {
+  height: 38px; width: 100%; padding: 0 11px; font-size: 14px;
+  border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); outline: none;
+  transition: border-color .12s, box-shadow .12s;
+}
+.field input:hover { border-color: var(--border-2); }
+.field input:focus { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
+.pw { position: relative; }
+.pw input { padding-right: 62px; }
+.pw button {
+  position: absolute; right: 5px; top: 5px; height: 28px; padding: 0 9px; border: 0; border-radius: 4px;
+  background: none; color: var(--muted); font-size: 11.5px; font-weight: 500; cursor: pointer;
+  font-family: var(--font-read);
+}
+.pw button:hover { background: var(--surface-2); color: var(--text); }
+.caps { font-size: 11.5px; color: var(--accent); font-weight: 500; font-family: var(--font-read); }
+.hint { font-weight: 400; color: var(--muted); }
+
+.submit {
+  height: 40px; margin-top: 4px; border: 1px solid var(--ink); border-radius: var(--r-sm);
+  background: var(--ink); color: var(--on-ink); font-size: 13.5px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: opacity .12s;
+}
+.submit:hover { opacity: .88; }
+.submit:disabled { opacity: .6; cursor: progress; }
+.spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.again { align-self: center; font-size: 12px; color: var(--muted); font-family: var(--font-read); }
+.again:hover { color: var(--text); }
+
+.foot { font-size: 11px; color: var(--muted); text-align: center; display: flex; align-items: center; gap: 6px; font-family: var(--font-read); }
+.foot svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand">
+    <svg class="mark" viewBox="85.07 32.88 201.80 61.92" role="img" aria-label="Loupe"><path fill="currentColor" fill-rule="evenodd" d="M85.068 84.0V32.88H94.428V75.864H118.692V84.0Z M122 65.3a19.9 19.9 0 1 0 39.8 0a19.9 19.9 0 1 0 -39.8 0ZM132.78 74.42A12.9 9.4 -45 1 0 151.02 56.18A12.9 9.4 -45 1 0 132.78 74.42Z M180.012 84.864Q174.108 84.864 170.724 81.048Q167.34 77.232 167.34 70.32V45.552H176.556V68.016Q176.556 72.912 178.17600000000002 75.144Q179.79600000000002 77.376 183.108 77.376Q186.78 77.376 188.868 74.892Q190.95600000000002 72.408 190.95600000000002 67.656V45.552H200.17200000000003V84.0H191.74800000000002L191.604 77.736Q188.58 84.864 180.012 84.864Z M208.924 94.8V45.552H217.78L217.924 51.312000000000005Q219.58 48.072 222.604 46.38Q225.62800000000001 44.688 229.44400000000002 44.688Q234.916 44.688 238.55200000000002 47.388000000000005Q242.18800000000002 50.088 243.988 54.66Q245.788 59.232 245.788 64.776Q245.788 70.32 243.952 74.856Q242.116 79.392 238.48000000000002 82.128Q234.84400000000002 84.864 229.372 84.864Q225.70000000000002 84.864 222.71200000000002 83.244Q219.72400000000002 81.624 218.14000000000001 78.744V94.8ZM227.21200000000002 77.376Q231.388 77.376 233.8 74.028Q236.21200000000002 70.68 236.21200000000002 64.776Q236.21200000000002 58.872 233.8 55.524Q231.388 52.176 227.21200000000002 52.176Q223.036 52.176 220.58800000000002 55.344Q218.14000000000001 58.512 218.14000000000001 64.776Q218.14000000000001 71.04 220.55200000000002 74.208Q222.964 77.376 227.21200000000002 77.376Z M268.86800000000005 84.864Q263.108 84.864 258.86 82.38Q254.61200000000002 79.896 252.30800000000002 75.36Q250.00400000000002 70.824 250.00400000000002 64.776Q250.00400000000002 58.728 252.30800000000002 54.19200000000001Q254.61200000000002 49.656000000000006 258.824 47.172000000000004Q263.036 44.688 268.65200000000004 44.688Q274.124 44.688 278.228 47.136Q282.332 49.584 284.6 54.192Q286.86800000000005 58.8 286.86800000000005 65.28V67.368H259.58000000000004Q259.79600000000005 72.408 262.31600000000003 74.964Q264.836 77.52 268.94000000000005 77.52Q275.204 77.52 276.932 72.19200000000001L286.36400000000003 72.768Q284.78000000000003 78.384 280.136 81.624Q275.492 84.864 268.86800000000005 84.864ZM259.58000000000004 61.176H277.36400000000003Q277.004 56.496 274.664 54.228Q272.324 51.96 268.65200000000004 51.96Q264.908 51.96 262.53200000000004 54.336Q260.156 56.712 259.58000000000004 61.176Z"/></svg>
+    <div class="brand-sub">Edge protection console</div>
+  </div>
+
+  {{if eq .Stage "code"}}
+  <form class="card" method="post" action="/login/2fa" id="code2fa" novalidate>
+    <div>
+      <h1>Two-step verification</h1>
+      <p class="lede">Enter the 6-digit code from your authenticator app, or one of your recovery codes.</p>
+    </div>
+
+    {{if .Error}}
+    <div class="alert" role="alert">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+      <span>{{.Error}}</span>
+    </div>
+    {{end}}
+
+    <label class="field">Code
+      <input name="code" id="code" autocomplete="one-time-code" inputmode="text" autocapitalize="none" spellcheck="false"
+             required maxlength="32" autofocus>
+    </label>
+    <input type="hidden" name="pending" value="{{.Pending}}">
+    <input type="hidden" name="next" id="next" value="{{.Next}}">
+
+    <button class="submit" type="submit" id="submit">Verify</button>
+    <a class="again" href="/login">Start over</a>
+  </form>
+  {{else if eq .Stage "nosetup"}}
+  <div class="card">
+    <div>
+      <h1>No admin yet</h1>
+      <p class="lede">Open the setup link in Loupe's log to create the first admin. On a systemd install: <code>journalctl -u loupe | grep setup</code></p>
+    </div>
+  </div>
+  {{else if eq .Stage "setup"}}
+  <form class="card" method="post" action="/setup/{{.Token}}" id="login" novalidate>
+    <div>
+      <h1>Create the first admin</h1>
+      <p class="lede">This link works once. Add more users from the dashboard afterwards.</p>
+    </div>
+
+    {{if .Error}}
+    <div class="alert" role="alert">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+      <span>{{.Error}}</span>
+    </div>
+    {{end}}
+
+    <label class="field">Username
+      <input name="username" id="username" autocomplete="username" autocapitalize="none" spellcheck="false"
+             required maxlength="64" value="{{.Username}}" autofocus>
+    </label>
+    <div class="field">
+      <label for="password">Password <span class="hint">(8 characters or more)</span></label>
+      <div class="pw">
+        <input type="password" name="password" id="password" autocomplete="new-password" required minlength="8" maxlength="256">
+        <button type="button" id="reveal" aria-controls="password" aria-pressed="false">Show</button>
+      </div>
+      <span class="caps" id="caps" hidden>Caps Lock is on</span>
+    </div>
+    <label class="field">Repeat password
+      <input type="password" name="confirm" id="confirm" autocomplete="new-password" required maxlength="256">
+    </label>
+    <input type="hidden" name="next" id="next" value="">
+
+    <button class="submit" type="submit" id="submit">Create admin</button>
+  </form>
+  {{else}}
+  <form class="card" method="post" action="/login" id="login" novalidate>
+    <div>
+      <h1>Sign in</h1>
+      <p class="lede">Use your Loupe admin account.</p>
+    </div>
+
+    {{if .Error}}
+    <div class="alert" role="alert">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+      <span>{{.Error}}</span>
+    </div>
+    {{end}}
+
+    <label class="field">Username
+      <input name="username" id="username" autocomplete="username" autocapitalize="none" spellcheck="false"
+             required maxlength="128" value="{{.Username}}"{{if not .Username}} autofocus{{end}}>
+    </label>
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="pw">
+        <input type="password" name="password" id="password" autocomplete="current-password" required maxlength="1024"{{if .Username}} autofocus{{end}}>
+        <button type="button" id="reveal" aria-controls="password" aria-pressed="false">Show</button>
+      </div>
+      <span class="caps" id="caps" hidden>Caps Lock is on</span>
+    </div>
+    <input type="hidden" name="next" id="next" value="{{.Next}}">
+
+    <button class="submit" type="submit" id="submit">Sign in</button>
+  </form>
+  {{end}}
+
+  <p class="foot">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    Sign-in attempts are rate-limited and logged.
+  </p>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  if (!$('next')) return; // no form on this page
+  // Return to the dashboard view the session expired on.
+  if (!$('next').value && /^#\/[A-Za-z0-9/_-]{0,64}$/.test(location.hash)) $('next').value = location.hash;
+
+  if ($('code2fa')) {
+    $('code2fa').addEventListener('submit', e => {
+      if (!$('code').value.trim()) { e.preventDefault(); $('code').focus(); return; }
+      const b = $('submit');
+      b.disabled = true;
+      b.innerHTML = '<span class="spinner" aria-hidden="true"></span>Verifying…';
+    });
+  } else {
+    const pw = $('password'), reveal = $('reveal');
+    reveal.addEventListener('click', () => {
+      const show = pw.type === 'password';
+      pw.type = show ? 'text' : 'password';
+      reveal.textContent = show ? 'Hide' : 'Show';
+      reveal.setAttribute('aria-pressed', show);
+      pw.focus();
+    });
+    const caps = e => { if (e.getModifierState) $('caps').hidden = !e.getModifierState('CapsLock'); };
+    pw.addEventListener('keydown', caps);
+    pw.addEventListener('keyup', caps);
+    pw.addEventListener('blur', () => { $('caps').hidden = true; });
+
+    $('login').addEventListener('submit', e => {
+      const u = $('username'), p = pw;
+      if (!u.value.trim()) { e.preventDefault(); u.focus(); return; }
+      if (!p.value) { e.preventDefault(); p.focus(); return; }
+      pw.type = 'password';
+      const b = $('submit');
+      b.disabled = true;
+      b.innerHTML = '<span class="spinner" aria-hidden="true"></span>' + ($('confirm') ? 'Creating…' : 'Signing in…');
+    });
+  }
+  // Coming back via the back button restores the page from cache mid-submit.
+  addEventListener('pageshow', e => { if (e.persisted) { $('submit').disabled = false; $('submit').textContent = $('code2fa') ? 'Verify' : $('confirm') ? 'Create admin' : 'Sign in'; } });
+})();
+</script>
+</body>
+</html>

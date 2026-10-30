@@ -1,0 +1,28 @@
+# Written by `loupe install`; running it again replaces this file.
+[Unit]
+Description=Loupe reverse proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=loupe
+Group=loupe
+StateDirectory=loupe
+WorkingDirectory=/var/lib/loupe
+ExecStart=/usr/local/bin/loupe /etc/loupe/config.yaml
+# always, not on-failure: the dashboard's "Restart Loupe" button works by
+# sending SIGTERM, which Loupe catches and exits cleanly (code 0).
+Restart=always
+RestartSec=5
+SyslogIdentifier=loupe
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+# The dashboard edits the config; data lives in StateDirectory.
+ReadWritePaths=/etc/loupe
+
+[Install]
+WantedBy=multi-user.target

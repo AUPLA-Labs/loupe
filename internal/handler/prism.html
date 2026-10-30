@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/favicon.ico">
+  <noscript><meta http-equiv="refresh" content="0; url={{.NoJSPath}}"></noscript>
+  <title>{{.T.title_verify}}</title>
+  <style>
+    @font-face {
+      font-family: 'Hubot Sans';
+      font-style: normal; font-weight: 200 900; font-display: swap;
+      src: url('/loupe/fonts/hubotsans.woff2') format('woff2');
+    }
+
+    /* Colour tokens; the dark set mirrors the admin console's palette. */
+    :root {
+      --bg: #fffffe;
+      --text: #0C0C0C;
+      --muted: #787878;
+      --accent: #9A7848;
+      --error: #C25A4A;
+      --beam-rgb: 201,168,108;
+      --line: rgba(0,0,0,0.12);
+      --tint: rgba(0,0,0,0.04);
+      --ink: #0C0C0C;
+      --on-ink: #fffffe;
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #15130F;
+        --text: #F1EDE4;
+        --muted: #948D7E;
+        --accent: #C9A15F;
+        --error: #F28B82;
+        --beam-rgb: 201,161,95;
+        --line: rgba(241,237,228,0.14);
+        --tint: rgba(241,237,228,0.04);
+        --ink: #F1EDE4;
+        --on-ink: #15130F;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: 'Hubot Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    /* Background */
+    .bg-wrap {
+      position: fixed; inset: 0;
+      pointer-events: none; overflow: hidden;
+    }
+
+    .floor-glow {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 200px;
+      background: radial-gradient(ellipse 50% 100% at 50% 100%,
+        rgba(var(--beam-rgb),0.06), transparent);
+    }
+
+    /* Card */
+    .card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 540px;
+      padding: 3rem 2rem 2.5rem;
+      text-align: center;
+    }
+
+    .brand-name {
+      display: block; height: 29px; width: auto; margin-inline: auto; color: var(--text);
+      margin-bottom: 1.75rem;
+    }
+
+    .status {
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-bottom: 1.25rem;
+    }
+
+    .error-msg {
+      font-size: 13px; font-weight: 400;
+      color: var(--error); margin-bottom: 1rem;
+    }
+
+    /* Puzzle */
+    .puzzle-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .piece-tray {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    #piece-canvas {
+      cursor: grab;
+      border-radius: 4px;
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,0.22));
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #piece-canvas.dragging { cursor: grabbing; }
+
+    #main-canvas {
+      display: block;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 5px;
+      border: 1px solid var(--line);
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .submit-btn {
+      display: block;
+      margin: 1.25rem auto 2rem;
+      width: 100%;
+      max-width: 480px;
+      font-family: 'Hubot Sans', system-ui, sans-serif;
+      font-size: 14.5px; font-weight: 600;
+      letter-spacing: -0.01em;
+      background: var(--ink); color: var(--on-ink);
+      border: none; border-radius: 5px;
+      padding: 13px 16px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .submit-btn:hover { opacity: 0.8; }
+    .submit-btn:disabled { opacity: 0.5; cursor: default; }
+
+    /* Lumen progress: only appears if the visitor finishes before the solve does. */
+    .lumen-bar {
+      width: 160px; height: 2px; margin: 1.25rem auto 0;
+      background: var(--line); border-radius: 1px; overflow: hidden;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .lumen-bar.on { opacity: 1; }
+    .lumen-bar i {
+      display: block; height: 100%; width: 0;
+      background: var(--accent); transition: width 0.25s ease-out;
+    }
+
+    .why {
+      max-width: 480px; margin: 0 auto 1.5rem;
+      font-size: 13px; color: var(--muted); line-height: 1.6; text-align: left;
+    }
+    .why summary {
+      cursor: pointer; text-align: center; color: var(--accent);
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .why p, .why ul { margin-top: 10px; }
+    .why ul { padding-left: 18px; }
+    .why li + li { margin-top: 4px; }
+
+    .footer {
+      font-size: 11px; color: var(--muted); opacity: 0.75;
+    }
+    .footer a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+    /* Loading state */
+    .puzzle-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 3 / 2;
+      background: var(--tint);
+      border-radius: 5px;
+      border: 1px solid var(--line);
+    }
+    .puzzle-loading-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .loading-spinner {
+      width: 28px; height: 28px;
+      border: 2px solid var(--line);
+      border-top-color: #C9A86C;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .loading-msg {
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    #puzzle-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="bg-wrap">
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="floor-glow"></div>
+  </div>
+
+  <div class="card">
+    {{template "wordmark"}}
+    <p class="status">{{.T.prism_status}}</p>
+
+    {{if .Error}}
+    <p class="error-msg">{{.T.prism_error}}</p>
+    {{end}}
+
+    <div class="puzzle-area">
+      <div id="puzzle-loading" class="puzzle-loading">
+        <div class="puzzle-loading-inner">
+          <div class="loading-spinner"></div>
+          <p id="loading-msg" class="loading-msg">{{.T.prism_loading}}</p>
+        </div>
+      </div>
+      <div id="puzzle-content" style="display:none">
+        <div class="piece-tray">
+          <canvas id="piece-canvas"></canvas>
+        </div>
+        <canvas id="main-canvas" width="480" height="320"></canvas>
+      </div>
+    </div>
+
+    <form id="submit-form" method="POST" action="{{.VerifyURL}}">
+      <input type="hidden" name="token"   value="{{.Token}}">
+      <input type="hidden" name="return"  value="{{.ReturnURL}}">
+      <input type="hidden" name="x"       id="drop-x"       value="-1">
+      <input type="hidden" name="y"       id="drop-y"       value="-1">
+      <input type="hidden" name="signals" id="signals-field" value="">
+      <input type="hidden" name="lumen_id" value="{{.LumenID}}">
+      <input type="hidden" name="lumen"   id="lumen-field"   value="">
+      <div class="lumen-bar" id="lumen-bar" role="progressbar" aria-label="{{.T.progress_label}}"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+      <button class="submit-btn" type="button" id="done-btn">{{.T.continue}}</button>
+    </form>
+
+    <details class="why">
+      <summary>{{.T.why}}</summary>
+      <p>{{.T.prism_why_intro}}</p>
+      <p>{{.T.prism_why_list_intro}}</p>
+      <ul>
+        <li>{{.T.prism_why_lists}}</li>
+        <li>{{.T.prism_why_vpn}}</li>
+        <li>{{.T.prism_why_network}}</li>
+        <li>{{.T.prism_why_ext}}</li>
+      </ul>
+      <p>{{.T.prism_why_after}}</p>
+    </details>
+
+    <div class="footer">{{template "footer" .Footer}}</div>
+  </div>
+
+  <script>{{.ProofJS}}</script>
+  <script>
+  (function () {
+    'use strict';
+
+    // Lumen runs in a worker while the visitor works the puzzle; Continue
+    // waits for it only if the visitor is faster.
+    var bar = document.getElementById('lumen-bar');
+    function setProgress(f) {
+      var pct = Math.round(f * 100);
+      bar.firstElementChild.style.width = pct + '%';
+      bar.setAttribute('aria-valuenow', pct);
+    }
+    var LUMEN = {{.Lumen}};
+    var LUMEN_WAIT = 30000;
+    var lumenDone = false;
+    var lumenAnswer = LUMEN
+      ? LoupeProof.solve(LUMEN, setProgress).then(function (s) { return s.answer; }, function () { return null; })
+      : Promise.resolve(null);
+    lumenAnswer.then(function () { lumenDone = true; });
+
+    var PIECE_W  = {{.PieceW}};
+    var PIECE_H  = {{.PieceH}};
+    var TAB_R    = {{.TabR}};
+    var IMG_W    = 480;
+    var IMG_H    = 320;
+    var GAPS     = {{.GapsJSON}};
+    var PIECE_X  = {{.PieceX}};
+    var PIECE_Y  = {{.PieceY}};
+    var IMAGE_ID = {{.ImageID}};
+
+    var pageLoadTime = Date.now();
+    var dropX = -1, dropY = -1;
+    var isDragging   = false;
+    var dragOverlay  = null;
+    var firstDragMs  = 0;
+    var dragStartMs  = 0;
+    var dragEndMs    = 0;
+    var attempts     = 0;
+    var dragPath     = [];
+
+    var mainCanvas  = document.getElementById('main-canvas');
+    var mainCtx     = mainCanvas.getContext('2d');
+    var pieceCanvas = document.getElementById('piece-canvas');
+    pieceCanvas.width  = PIECE_W + TAB_R;
+    pieceCanvas.height = PIECE_H;
+    var pieceCtx = pieceCanvas.getContext('2d');
+
+    // cx, cy = centre of the 100x100 piece body.
+    // socket = true draws the socket (anticlockwise arc); false draws the tab.
+    function buildPiecePath(ctx, cx, cy, socket) {
+      var x  = cx - PIECE_W / 2;
+      var y  = cy - PIECE_H / 2;
+      var mx = cx + PIECE_W / 2;
+      var my = cy;
+
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(mx, y);
+      ctx.lineTo(mx, my - TAB_R);
+      ctx.arc(mx, my, TAB_R, -Math.PI / 2, Math.PI / 2, socket);
+      ctx.lineTo(mx, y + PIECE_H);
+      ctx.lineTo(x,  y + PIECE_H);
+      ctx.closePath();
+    }
+
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = 'https://picsum.photos/seed/' + IMAGE_ID + '/480/320';
+
+    img.onload = function () {
+      mainCtx.drawImage(img, 0, 0, IMG_W, IMG_H);
+      if (gapsAreAmbiguous()) return;
+      document.getElementById('puzzle-loading').style.display = 'none';
+      document.getElementById('puzzle-content').style.display = '';
+      drawGapOverlays();
+      drawPieceCanvas();
+    };
+
+    img.onerror = function () {
+      document.getElementById('puzzle-loading').style.display = 'none';
+      document.getElementById('puzzle-content').style.display = '';
+      mainCtx.fillStyle = '#d4ccc4';
+      mainCtx.fillRect(0, 0, IMG_W, IMG_H);
+      drawGapOverlays();
+      buildPiecePath(pieceCtx, PIECE_W / 2, PIECE_H / 2, false);
+      pieceCtx.fillStyle = '#9E8463';
+      pieceCtx.fill();
+    };
+
+    function drawMainCanvas() {
+      mainCtx.clearRect(0, 0, IMG_W, IMG_H);
+      mainCtx.drawImage(img, 0, 0, IMG_W, IMG_H);
+      drawGapOverlays();
+      if (dropX >= 0 && dropY >= 0) {
+        drawDropMarker();
+      }
+    }
+
+    function drawGapOverlays() {
+      for (var i = 0; i < GAPS.length; i++) {
+        var g = GAPS[i];
+        mainCtx.save();
+        buildPiecePath(mainCtx, g.x, g.y, false);
+        mainCtx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+        mainCtx.fill();
+        mainCtx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
+        mainCtx.setLineDash([4, 4]);
+        mainCtx.lineWidth = 1.5;
+        mainCtx.stroke();
+        mainCtx.restore();
+      }
+    }
+
+    function drawDropMarker() {
+      mainCtx.save();
+      buildPiecePath(mainCtx, dropX, dropY, false);
+      mainCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      mainCtx.setLineDash([]);
+      mainCtx.lineWidth = 2;
+      mainCtx.stroke();
+      mainCtx.restore();
+    }
+
+    function drawPieceCanvas() {
+      pieceCtx.clearRect(0, 0, pieceCanvas.width, pieceCanvas.height);
+      pieceCtx.save();
+      buildPiecePath(pieceCtx, PIECE_W / 2, PIECE_H / 2, false);
+      pieceCtx.clip();
+      pieceCtx.drawImage(
+        img,
+        PIECE_X - PIECE_W / 2, PIECE_Y - PIECE_H / 2, PIECE_W + TAB_R, PIECE_H,
+        0, 0, PIECE_W + TAB_R, PIECE_H
+      );
+      pieceCtx.restore();
+      buildPiecePath(pieceCtx, PIECE_W / 2, PIECE_H / 2, false);
+      pieceCtx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+      pieceCtx.lineWidth = 1.5;
+      pieceCtx.stroke();
+    }
+
+    function createOverlay() {
+      var ov = document.createElement('canvas');
+      ov.width  = pieceCanvas.width;
+      ov.height = pieceCanvas.height;
+      ov.style.cssText =
+        'position:fixed;pointer-events:none;z-index:1000;' +
+        'opacity:0.88;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.35));';
+      document.body.appendChild(ov);
+      ov.getContext('2d').drawImage(pieceCanvas, 0, 0);
+      return ov;
+    }
+
+    function moveOverlay(cx, cy) {
+      if (!dragOverlay) return;
+      dragOverlay.style.left = (cx - dragOverlay.width  / 2) + 'px';
+      dragOverlay.style.top  = (cy - dragOverlay.height / 2) + 'px';
+    }
+
+    // Returns true and schedules a redirect if any gap region is too uniform to
+    // distinguish. Uses _r in the URL to cap retries at 3 (stays within burst-4
+    // rate limit alongside the initial page load and the verify POST).
+    function gapsAreAmbiguous() {
+      var MIN_VAR = 80; // variance < 80 (~SD 9) — only truly flat regions, e.g. solid sky
+      var MAX_RETRIES = 3;
+      var params = new URLSearchParams(window.location.search);
+      var retries = parseInt(params.get('_r') || '0', 10);
+      if (retries >= MAX_RETRIES) return false;
+
+      for (var i = 0; i < GAPS.length; i++) {
+        var g = GAPS[i];
+        var gx = Math.round(g.x - PIECE_W / 2);
+        var gy = Math.round(g.y - PIECE_H / 2);
+        var x1 = Math.max(0, gx);
+        var y1 = Math.max(0, gy);
+        var w  = Math.min(PIECE_W, IMG_W - x1);
+        var h  = Math.min(PIECE_H, IMG_H - y1);
+        if (w <= 0 || h <= 0) continue;
+
+        var pixels, n;
+        try {
+          pixels = mainCtx.getImageData(x1, y1, w, h).data;
+          n = pixels.length / 4;
+        } catch (e) {
+          continue; // CORS blocked — skip check
+        }
+
+        var sum = 0;
+        for (var j = 0; j < pixels.length; j += 4) {
+          sum += (pixels[j] * 299 + pixels[j + 1] * 587 + pixels[j + 2] * 114) / 1000;
+        }
+        var mean = sum / n;
+        var varSum = 0;
+        for (var j = 0; j < pixels.length; j += 4) {
+          var lum = (pixels[j] * 299 + pixels[j + 1] * 587 + pixels[j + 2] * 114) / 1000;
+          var d = lum - mean;
+          varSum += d * d;
+        }
+        if (varSum / n < MIN_VAR) {
+          document.getElementById('loading-msg').textContent = {{.T.prism_loading_new}};
+          params.set('_r', String(retries + 1));
+          setTimeout(function () {
+            window.location.href = window.location.pathname + '?' + params.toString();
+          }, 600);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    pieceCanvas.addEventListener('pointerdown', function (e) {
+      if (isDragging) return;
+      isDragging = true;
+      attempts++;
+      dragStartMs = Date.now();
+      if (!firstDragMs) firstDragMs = dragStartMs;
+      dragPath = [];
+
+      pieceCanvas.classList.add('dragging');
+      pieceCanvas.setPointerCapture(e.pointerId);
+      dragOverlay = createOverlay();
+      moveOverlay(e.clientX, e.clientY);
+      e.preventDefault();
+    });
+
+    pieceCanvas.addEventListener('pointermove', function (e) {
+      if (!isDragging) return;
+      moveOverlay(e.clientX, e.clientY);
+      dragPath.push([Math.round(e.clientX), Math.round(e.clientY), Date.now()]);
+      e.preventDefault();
+    });
+
+    pieceCanvas.addEventListener('pointerup', function (e) {
+      if (!isDragging) return;
+      isDragging = false;
+      dragEndMs  = Date.now();
+
+      pieceCanvas.classList.remove('dragging');
+      if (dragOverlay) {
+        document.body.removeChild(dragOverlay);
+        dragOverlay = null;
+      }
+
+      var rect   = mainCanvas.getBoundingClientRect();
+      var scaleX = IMG_W / rect.width;
+      var scaleY = IMG_H / rect.height;
+      var cx = (e.clientX - rect.left) * scaleX;
+      var cy = (e.clientY - rect.top)  * scaleY;
+
+      if (cx >= 0 && cx <= IMG_W && cy >= 0 && cy <= IMG_H) {
+        dropX = cx;
+        dropY = cy;
+        document.getElementById('drop-x').value = dropX.toFixed(2);
+        document.getElementById('drop-y').value = dropY.toFixed(2);
+      }
+
+      drawMainCanvas();
+      e.preventDefault();
+    });
+
+    pieceCanvas.addEventListener('pointercancel', function () {
+      isDragging = false;
+      pieceCanvas.classList.remove('dragging');
+      if (dragOverlay) {
+        document.body.removeChild(dragOverlay);
+        dragOverlay = null;
+      }
+    });
+
+    document.getElementById('done-btn').addEventListener('click', function () {
+      var signals = {
+        webdriver:    !!navigator.webdriver,
+        screenW:      screen.width,
+        screenH:      screen.height,
+        languages:    (navigator.languages || []).join(','),
+        dragDuration: dragEndMs > 0 ? dragEndMs - dragStartMs : 0,
+        preDragTime:  firstDragMs > 0 ? firstDragMs - pageLoadTime : 0,
+        attempts:     attempts,
+        dragPath:     dragPath
+      };
+      document.getElementById('signals-field').value = JSON.stringify(signals);
+      var btn = this;
+      btn.disabled = true;
+      if (!lumenDone) {
+        btn.textContent = {{.T.verifying}};
+        bar.classList.add('on');
+      }
+      // A solve that never settles must not leave the visitor stuck: after
+      // LUMEN_WAIT the answer goes without it and the server decides.
+      var sent = false;
+      function send(a) {
+        if (sent) return;
+        sent = true;
+        document.getElementById('lumen-field').value = a ? JSON.stringify(a) : '';
+        document.getElementById('submit-form').submit();
+      }
+      lumenAnswer.then(send);
+      setTimeout(function () { send(null); }, LUMEN_WAIT);
+    });
+  }());
+  </script>
+</body>
+</html>

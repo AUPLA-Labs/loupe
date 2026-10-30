@@ -1,0 +1,17 @@
+{{define "footer"}}<style>
+  .footer { text-align: center; line-height: 1.5; padding: 0 16px; }
+  .footer a, .sl-ip-reveal { color: var(--accent, #9A7848); }
+  .footer a { text-decoration: underline; text-underline-offset: 2px; }
+  .sl-meta { margin-bottom: 4px; }
+  .sl-meta code { font-family: inherit; letter-spacing: 0.02em; }
+  .sl-ip-toggle { position: absolute; opacity: 0; pointer-events: none; }
+  .sl-ip-reveal { cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .sl-ip { display: none; }
+  .sl-ip-toggle:checked ~ .sl-ip-reveal { display: none; }
+  .sl-ip-toggle:checked ~ .sl-ip { display: inline; }
+</style>
+<div class="sl-meta">
+  {{if .VerdictID}}{{.T.verdict_id}} <code>{{.VerdictID}}</code> &middot; {{end}}{{.T.your_ip}}
+  <span><input type="checkbox" id="sl-ip-toggle" class="sl-ip-toggle" aria-label="{{.T.reveal_aria}}"><label for="sl-ip-toggle" class="sl-ip-reveal">{{.T.reveal}}</label><span class="sl-ip">{{.ClientIP}}</span></span>
+</div>
+<div>{{.T.secured_before}}<a href="https://auplalabs.com" target="_blank" rel="noopener noreferrer">AUPLA</a>{{.T.secured_after}}</div>{{end}}

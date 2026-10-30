@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/favicon.ico">
+  <noscript><meta http-equiv="refresh" content="0; url={{.NoJSPath}}"></noscript>
+  <title>{{.T.title_checking}}</title>
+  <style>
+    @font-face {
+      font-family: 'Hubot Sans';
+      font-style: normal; font-weight: 200 900; font-display: swap;
+      src: url('/loupe/fonts/hubotsans.woff2') format('woff2');
+    }
+
+    /* Colour tokens; the dark set mirrors the admin console's palette. */
+    :root {
+      --bg: #fffffe;
+      --text: #0C0C0C;
+      --muted: #787878;
+      --accent: #9A7848;
+      --error: #C25A4A;
+      --wash-rgb: 100,100,100;
+      --ray-rgb: 160,160,160;
+      --spin-rgb: 82,82,82;
+      --spin: rgb(var(--spin-rgb));
+      --line: rgba(0,0,0,0.12);
+      --line-mid: rgba(0,0,0,0.22);
+      --line-strong: rgba(0,0,0,0.28);
+      --glass: rgba(255,255,255,0.55);
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #15130F;
+        --text: #F1EDE4;
+        --muted: #948D7E;
+        --accent: #C9A15F;
+        --error: #F28B82;
+        --wash-rgb: 200,194,180;
+        --ray-rgb: 148,141,126;
+        --spin-rgb: 200,194,180;
+        --line: rgba(241,237,228,0.14);
+        --line-mid: rgba(241,237,228,0.24);
+        --line-strong: rgba(241,237,228,0.30);
+        --glass: rgba(29,27,22,0.55);
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Hubot Sans', system-ui, sans-serif;
+      background: var(--bg);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body { display: flex; align-items: center; justify-content: center; }
+
+    /* Background */
+    .bg-wrap {
+      position: fixed; inset: 0;
+      pointer-events: none; overflow: hidden;
+    }
+
+    .beam-cone {
+      position: absolute;
+      top: -40px; left: 50%;
+      transform: translateX(-50%);
+      width: 900px; height: 680px;
+      background: radial-gradient(ellipse 520px 520px at 50% 0%,
+        rgba(var(--wash-rgb),0.10) 0%,
+        rgba(var(--wash-rgb),0.04) 35%,
+        transparent 68%);
+      animation: breathe 5s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.7; transform: translateX(-50%) scaleX(1); }
+      50%       { opacity: 1;   transform: translateX(-50%) scaleX(1.06); }
+    }
+
+    .ray {
+      position: absolute; top: 0; left: 50%;
+      height: 560px; width: 1px;
+      transform-origin: top center;
+      background: linear-gradient(to bottom, rgba(var(--ray-rgb),0.55), transparent);
+    }
+    .ray:nth-child(2) { transform: rotate(-30deg); opacity: 0.5; }
+    .ray:nth-child(3) { transform: rotate(-16deg); opacity: 0.7; }
+    .ray:nth-child(4) { transform: rotate(0deg);   opacity: 0.9; }
+    .ray:nth-child(5) { transform: rotate(16deg);  opacity: 0.7; }
+    .ray:nth-child(6) { transform: rotate(30deg);  opacity: 0.5; }
+
+    .floor-glow {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 200px;
+      background: radial-gradient(ellipse 50% 100% at 50% 100%,
+        rgba(var(--ray-rgb),0.06), transparent);
+    }
+
+    /* Card */
+    .card {
+      position: relative;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 28px;
+      padding: 52px 68px 44px;
+    }
+
+    .brand-name {
+      display: block; height: 32px; width: auto; margin-inline: auto; color: var(--text);
+    }
+
+    /* Spinner (auto mode) */
+    .spinner-wrap {
+      position: relative; width: 64px; height: 64px;
+    }
+
+    .ring-track {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 1.5px solid rgba(var(--wash-rgb),0.14);
+    }
+
+    .ring-svg {
+      position: absolute; inset: 0;
+      width: 64px; height: 64px;
+      animation: spinArc 1.1s linear infinite;
+    }
+
+    #arcGrad stop { stop-color: var(--spin); }
+
+    @keyframes spinArc { to { transform: rotate(360deg); } }
+
+    .ring-svg circle {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-dasharray: 120 180;
+      stroke-dashoffset: 0;
+      stroke: url(#arcGrad);
+    }
+
+    .pulse-dot {
+      position: absolute; top: 50%; left: 50%;
+      width: 7px; height: 7px;
+      background: var(--spin);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: pulseDot 1.8s ease-in-out infinite;
+      box-shadow: 0 0 10px rgba(var(--spin-rgb),0.35);
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.75); }
+      50%       { opacity: 1;   transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    /* Text block */
+    .text-block {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 7px; text-align: center;
+    }
+
+    .status-line {
+      font-size: 14.5px; font-weight: 500;
+      color: var(--text); letter-spacing: -0.01em;
+      display: flex; align-items: baseline; gap: 1px;
+    }
+
+    .dots span {
+      display: inline-block; opacity: 0;
+      animation: dotFade 1.5s ease-in-out infinite;
+    }
+    .dots span:nth-child(1) { animation-delay: 0.0s; }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotFade {
+      0%, 55%, 100% { opacity: 0; }
+      25%            { opacity: 1; }
+    }
+
+    .sub-line {
+      font-size: 12px; font-weight: 400;
+      color: var(--muted); letter-spacing: 0.01em; line-height: 1.6;
+    }
+
+    /* Manual verify */
+    .verify-heading {
+      font-size: 20px; font-weight: 500;
+      color: var(--text); letter-spacing: -0.02em;
+      text-align: center; margin-bottom: 20px;
+    }
+
+    .check-row {
+      display: flex; align-items: center; gap: 14px;
+      border: 1px solid var(--line);
+      border-radius: 5px; padding: 14px 18px;
+      cursor: pointer; user-select: none;
+      transition: border-color 0.2s;
+      background: var(--glass);
+      backdrop-filter: blur(8px);
+      min-width: 240px;
+    }
+    .check-row:hover:not(.done) { border-color: var(--line-strong); }
+    .check-row.done { cursor: default; }
+
+    .check-box {
+      flex-shrink: 0; width: 20px; height: 20px;
+      border: 1.5px solid var(--line-mid); border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .check-box.solving { border-color: var(--spin); }
+
+    .mini-spin {
+      width: 10px; height: 10px;
+      border: 1.5px solid rgba(var(--spin-rgb),0.18); border-top-color: var(--spin);
+      border-radius: 50%; animation: spinArc 0.6s linear infinite; display: none;
+    }
+    .check-box.solving .mini-spin { display: block; }
+
+    .check-label {
+      font-size: 14.5px; font-weight: 500;
+      color: var(--text); letter-spacing: -0.01em;
+    }
+
+    /* Lumen progress: only appears if the solve takes long enough to notice. */
+    .lumen-bar {
+      width: 160px; height: 2px; margin: 20px auto 0;
+      background: var(--line); border-radius: 1px; overflow: hidden;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .lumen-bar.on { opacity: 1; }
+    .lumen-bar i {
+      display: block; height: 100%; width: 0;
+      background: var(--spin); transition: width 0.25s ease-out;
+    }
+
+    /* Error */
+    .error {
+      font-size: 13px; font-weight: 400;
+      color: var(--error); display: none; text-align: center;
+    }
+    .error a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+    .hidden { display: none !important; }
+
+    /* Done state (shown while redirecting after a pass) */
+    #card-auto, #card-done {
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .done-svg { display: block; width: 64px; height: 64px; }
+    /* Reserve the checking state's two sub-line rows so the card doesn't resize on swap. */
+    #card-done .sub-line { min-height: 3.2em; }
+    .done-svg circle, .done-svg path {
+      fill: none; stroke: var(--spin); stroke-linecap: round; stroke-linejoin: round;
+    }
+    .done-svg circle { stroke-width: 1.5; }
+    .done-svg path { stroke-width: 2; }
+
+    /* Footer */
+    .footer {
+      position: fixed; bottom: 14px;
+      font-size: 11px; color: var(--muted); opacity: 0.75;
+    }
+    .footer a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden" aria-hidden="true"><input id="waf-field-ws" type="text" tabindex="-1" autocomplete="off" value=""></div>
+
+  <div id="waf-cfg"
+       data-challenge-url="{{.ChallengeURL}}"
+       data-verify-url="{{.VerifyURL}}"
+       data-return-url="{{.ReturnURL}}"
+       data-force-manual="{{.ForceManual}}"
+       style="display:none"></div>
+
+  <div class="bg-wrap">
+    <div class="beam-cone"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="floor-glow"></div>
+  </div>
+
+  <div class="card">
+
+    <svg width="0" height="0" style="position:absolute">
+      <defs>
+        <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#525252" stop-opacity="0"/>
+          <stop offset="60%"  stop-color="#525252" stop-opacity="0.7"/>
+          <stop offset="100%" stop-color="#525252" stop-opacity="1"/>
+        </linearGradient>
+      </defs>
+    </svg>
+
+    {{template "wordmark"}}
+
+    <div id="card-auto">
+      <div class="spinner-wrap">
+        <div class="ring-track"></div>
+        <svg class="ring-svg" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="30"/>
+        </svg>
+        <div class="pulse-dot"></div>
+      </div>
+      <div class="text-block" style="margin-top:20px">
+        <div class="status-line">
+          {{.T.checking}}
+          <span class="dots"><span>.</span><span>.</span><span>.</span></span>
+        </div>
+        <div class="sub-line">
+          {{.T.checking_sub_challenge}}
+        </div>
+      </div>
+    </div>
+
+    <div id="card-manual" class="hidden">
+      <div class="verify-heading">{{.T.verify_heading}}</div>
+      <div class="check-row" id="check-row">
+        <div class="check-box" id="check-box">
+          <div class="mini-spin"></div>
+        </div>
+        <span class="check-label">{{.T.i_am_human}}</span>
+      </div>
+    </div>
+
+    <div class="lumen-bar" id="lumen-bar" role="progressbar" aria-label="{{.T.progress_label}}"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+
+    <div id="card-done" class="hidden" role="status">
+      <svg class="done-svg" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="30"/>
+        <path d="M20 33 L28 41 L44 24"/>
+      </svg>
+      <div class="text-block" style="margin-top:20px">
+        <div class="status-line">{{.T.verified}}</div>
+        <div class="sub-line">{{.T.redirecting}}</div>
+      </div>
+    </div>
+
+    <p class="error" id="error-msg">
+      {{.T.failed}}
+    </p>
+
+  </div>
+
+  <div class="footer">{{template "footer" .Footer}}</div>
+
+  <script>{{.ProofJS}}</script>
+  <!-- Separate block: a failure in the collector must never take the proof
+       runtime down with it. A page without LoupeFP still answers and
+       scores fp_incomplete (a harder challenge), never gets stuck. -->
+  <script>{{.FingerprintJS}}</script>
+  <script>
+(function() {
+    const startTime = Date.now();
+
+    // Collect up to 500 mouse points for entropy analysis.
+    let mouseMoved = false;
+    let firstInteractionMs = 0;
+    const mousePath = [];
+
+    function recordFirstInteraction() {
+      if (firstInteractionMs === 0) firstInteractionMs = Date.now() - startTime;
+    }
+    document.addEventListener('mousemove', recordFirstInteraction, { once: true, passive: true });
+    document.addEventListener('touchstart', recordFirstInteraction, { once: true, passive: true });
+    document.addEventListener('scroll', recordFirstInteraction, { once: true, passive: true });
+    document.addEventListener('keydown', recordFirstInteraction, { once: true, passive: true });
+
+    // First *deliberate* action (key, touch, press). Mouse movement and
+    // scrolling are excluded: a hand still moving the mouse when the page
+    // appears produces them instantly, while nobody can decide to press
+    // something within 100 ms of a page loading.
+    let firstDeliberateMs = 0;
+    function recordDeliberate() {
+      if (firstDeliberateMs === 0) firstDeliberateMs = Date.now() - startTime;
+    }
+    ['keydown', 'touchstart', 'mousedown'].forEach(t =>
+      document.addEventListener(t, recordDeliberate, { once: true, passive: true, capture: true }));
+
+    // Brave Shields rewrites outerWidth/outerHeight, so window-geometry
+    // signals say nothing about Brave.
+    function isBrave() {
+      try {
+        if (navigator.brave) return true;
+        const brands = (navigator.userAgentData && navigator.userAgentData.brands) || [];
+        return brands.some(b => b.brand === 'Brave');
+      } catch (_) { return false; }
+    }
+
+    let movementDeltaSeen = false;
+    function onMouseMove(e) {
+      mouseMoved = true;
+      if (firstInteractionMs === 0) firstInteractionMs = Date.now() - startTime;
+      if (mousePath.length < 500)
+        mousePath.push([Math.round(e.clientX), Math.round(e.clientY), Date.now() - startTime]);
+      if (e.movementX !== 0 || e.movementY !== 0) movementDeltaSeen = true;
+    }
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('touchstart', () => { mouseMoved = true; }, { once: true });
+
+    function computeMouseMetrics(path) {
+      if (path.length < 3) return { jitter: 999, velVariance: 999 };
+      const n = path.length;
+      const x0 = path[0][0], y0 = path[0][1];
+      const x1 = path[n-1][0], y1 = path[n-1][1];
+      const dx = x1 - x0, dy = y1 - y0;
+      const lenSq = dx*dx + dy*dy;
+      let sumDevSq = 0;
+      for (let i = 1; i < n-1; i++) {
+        if (lenSq === 0) {
+          const px = path[i][0]-x0, py = path[i][1]-y0;
+          sumDevSq += px*px + py*py;
+        } else {
+          const cross = (path[i][0]-x0)*dy - (path[i][1]-y0)*dx;
+          sumDevSq += (cross*cross) / lenSq;
+        }
+      }
+      const jitter = n > 2 ? sumDevSq / (n - 2) : 999;
+
+      // Velocity variance across path segments.
+      const vels = [];
+      for (let i = 1; i < n; i++) {
+        const dt = path[i][2] - path[i-1][2];
+        if (dt <= 0) continue;
+        const ddx = path[i][0]-path[i-1][0], ddy = path[i][1]-path[i-1][1];
+        vels.push(Math.sqrt(ddx*ddx + ddy*ddy) / dt);
+      }
+      let velVariance = 999;
+      if (vels.length > 1) {
+        const mean = vels.reduce((a,b) => a+b, 0) / vels.length;
+        velVariance = vels.reduce((a,v) => a + (v-mean)**2, 0) / vels.length;
+      }
+      return { jitter, velVariance };
+    }
+
+    // Scroll behavioral collection.
+    const scrollEvents = [];
+    document.addEventListener('wheel', e => {
+      scrollEvents.push([e.deltaY || 0, Date.now() - startTime]);
+    }, { passive: true });
+
+    function computeScrollMetrics() {
+      const docH = Math.max(
+        document.body ? document.body.scrollHeight : 0,
+        document.documentElement.scrollHeight
+      );
+      const winH = window.innerHeight;
+      const canScroll = docH > winH + 50;
+      const count = scrollEvents.length;
+      let intervalVariance = -1;
+      if (count >= 3) {
+        const intervals = [];
+        for (let i = 1; i < count; i++)
+          intervals.push(scrollEvents[i][1] - scrollEvents[i-1][1]);
+        const mean = intervals.reduce((a,b) => a+b, 0) / intervals.length;
+        intervalVariance = intervals.reduce((a,v) => a + (v-mean)**2, 0) / intervals.length;
+      }
+      return { count, intervalVariance, canScroll };
+    }
+
+    // Keystroke inter-key interval tracking.
+    let lastKeyTime = -1;
+    let ikiMax = 0;
+    let keyCount = 0;
+    document.addEventListener('keydown', () => {
+      const t = Date.now();
+      keyCount++;
+      if (lastKeyTime >= 0) {
+        const iki = t - lastKeyTime;
+        if (iki > ikiMax) ikiMax = iki;
+      }
+      lastKeyTime = t;
+    });
+
+    let pageWasHidden = document.hidden;
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) pageWasHidden = true;
+    });
+
+    // requestAnimationFrame cadence — measures inter-frame variance.
+    // Headless environments produce near-zero variance.
+    const rafIntervals = [];
+    let rafResolve;
+    const rafReady = new Promise(res => { rafResolve = res; });
+    let rafPrev = null, rafCount = 0;
+    function rafFrame(ts) {
+      if (rafPrev !== null) rafIntervals.push(ts - rafPrev);
+      rafPrev = ts;
+      if (++rafCount < 32) requestAnimationFrame(rafFrame);
+      else rafResolve();
+    }
+    requestAnimationFrame(rafFrame);
+
+    function computeVariance(arr) {
+      if (arr.length < 2) return 999;
+      const mean = arr.reduce((a,b) => a+b, 0) / arr.length;
+      return arr.reduce((a,v) => a + (v-mean)**2, 0) / arr.length;
+    }
+
+    // WebGL fingerprint — SwiftShader/LLVMpipe indicates headless Chrome.
+    let webglRenderer = '', webglVendor = '';
+    try {
+      const gl = document.createElement('canvas').getContext('webgl') ||
+                 document.createElement('canvas').getContext('experimental-webgl');
+      if (gl) {
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        if (dbg) {
+          webglRenderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '';
+          webglVendor   = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)   || '';
+        }
+      }
+    } catch (_) {}
+
+    // Fingerprint collection starts at load; the visitor's own time on the
+    // page (reading, clicking) covers its asynchronous sections.
+    const fpReady = Promise.resolve().then(() => LoupeFP.collect(1500)).catch(() => null);
+
+    const cfg = document.getElementById('waf-cfg').dataset;
+    const forceManual = cfg.forceManual === '1';
+
+    // Declared before run() can first be called below.
+    const bar = document.getElementById('lumen-bar');
+    function setProgress(f) {
+      const pct = Math.round(f * 100);
+      bar.firstElementChild.style.width = pct + '%';
+      bar.setAttribute('aria-valuenow', pct);
+    }
+    function hideProgress() {
+      clearTimeout(barTimer);
+      bar.classList.remove('on');
+    }
+    let barTimer = null;
+
+    let score = 0;
+    if (navigator.webdriver)                                    score += 3;
+    if (!screen.width || screen.width < 64)                    score += 3;
+    if (!navigator.languages || !navigator.languages.length)   score += 2;
+
+    const manual = forceManual || score >= 2;
+
+    if (manual) {
+      document.getElementById('card-auto').classList.add('hidden');
+      document.getElementById('card-manual').classList.remove('hidden');
+    } else {
+      run();
+    }
+
+    let clickDone = false;
+    let clickWasTrusted = false;
+    document.getElementById('check-row').addEventListener('click', function(e) {
+      if (clickDone) return;
+      clickWasTrusted = e.isTrusted === true;
+      clickDone = true;
+      document.getElementById('check-row').classList.add('done');
+      document.getElementById('check-box').classList.add('solving');
+      run();
+    });
+
+    // ── Browser API consistency checks ────────────────────────────────────────
+    // navigator.platform is deprecated; signal decays silently if browsers remove it.
+    function checkPlatformTzMismatch() {
+      const plat = (navigator.platform || '').toLowerCase();
+      const tz   = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      // Linux servers running headless browsers with a spoofed Win32 platform
+      // commonly leave the timezone as UTC or an Etc/ zone.
+      const winPlat = plat.includes('win');
+      const linuxTz = tz === 'UTC' || tz === 'Etc/UTC' || tz.startsWith('Etc/');
+      return winPlat && linuxTz;
+    }
+
+    function checkLanguageInconsistency() {
+      const lang  = navigator.language || '';
+      const langs = navigator.languages || [];
+      if (lang === '' || langs.length === 0) return false;
+      if (langs.includes(lang)) return false;
+      // Allow base language tag matching a regional subtag (e.g. "en" in ["en-US"]).
+      const base = lang.split('-')[0];
+      return !langs.some(l => l === base || l.startsWith(base + '-'));
+    }
+
+    async function run() {
+      const cfg = document.getElementById('waf-cfg').dataset;
+      try {
+        // The challenge is the proof spec itself; its "l" is the Lumen part.
+        const ch = await fetch(cfg.challengeUrl + (forceManual ? '?m=1' : ''), { cache: 'no-store' }).then(r => {
+          if (!r.ok) throw new Error(r.status);
+          return r.json();
+        });
+
+        barTimer = setTimeout(() => bar.classList.add('on'), 600);
+        const sol = await LoupeProof.solve(ch.l, setProgress);
+        setProgress(1);
+        const fp = await fpReady;
+        if (fp) fp.worker = sol.nav || null;
+
+        await rafReady; // ensure rAF loop has completed before submitting
+
+        const { jitter, velVariance } = computeMouseMetrics(mousePath);
+        const scroll = computeScrollMetrics();
+
+        const signals = {
+          webdriver:           !!navigator.webdriver,
+          mouseMoved,
+          mousePath,
+          movementDeltaSeen,
+          mouseJitter:         jitter,
+          velocityVariance:    velVariance,
+          scrollCount:         scroll.count,
+          scrollIntervalVar:   scroll.intervalVariance,
+          scrollCanScroll:     scroll.canScroll,
+          ikiMax,
+          keyCount,
+          rafVariance:         computeVariance(rafIntervals),
+          rafHidden:           pageWasHidden,
+          firstInteractionMs,
+          firstDeliberateMs,
+          isBrave:             isBrave(),
+          fp,
+          pageOpenMs:          Date.now() - startTime,
+          maxTouchPoints:      navigator.maxTouchPoints || 0,
+          screenW:             screen.width,
+          screenH:             screen.height,
+          availW:              screen.availWidth,
+          availH:              screen.availHeight,
+          colorDepth:          screen.colorDepth,
+          outerWidth:          window.outerWidth,
+          outerHeight:         window.outerHeight,
+          innerHeight:         window.innerHeight,
+          hasFocus:            document.hasFocus(),
+          timezone:            Intl.DateTimeFormat().resolvedOptions().timeZone,
+          platform:            navigator.platform,
+          language:            navigator.language || '',
+          languages:           (navigator.languages || [navigator.language]).join(','),
+          hardwareConcurrency: navigator.hardwareConcurrency ?? null,
+          deviceMemory:        navigator.deviceMemory,
+          webglRenderer,
+          webglVendor,
+          solveTimeMs:         Date.now() - startTime,
+          manual,
+          clickTrusted:         clickWasTrusted,
+          platformTzMismatch:   checkPlatformTzMismatch(),
+          languageInconsistent: checkLanguageInconsistency(),
+        };
+        const proof = LoupeProof.measure(ch);
+        signals.proofRects = proof.rects;
+        signals.proofColor = proof.color;
+        signals.lumen = sol.answer;
+
+        // Ask for JSON so we learn the verdict (a form POST would only show us
+        // the 302). "pass" means clearance was issued and the redirect goes to
+        // the site; anything else is a further challenge, so no done state.
+        const resp = await fetch(cfg.verifyUrl, {
+          method: 'POST',
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin',
+          cache: 'no-store',
+          body: new URLSearchParams({
+            return:  cfg.returnUrl,
+            proof:   ch.id,
+            sealed:  LoupeProof.seal(ch, signals),
+            website: document.getElementById('waf-field-ws').value,
+          }),
+        });
+        const type = resp.headers.get('Content-Type') || '';
+
+        if (type.includes('application/json')) {
+          const verdict = await resp.json();
+          hideProgress();
+          if (verdict.action === 'pass') {
+            document.getElementById('card-auto').classList.add('hidden');
+            document.getElementById('card-manual').classList.add('hidden');
+            document.getElementById('card-done').classList.remove('hidden');
+            document.title = 'Loupe \u2014 Verified';
+          }
+          window.location.href = verdict.url;
+          return;
+        }
+
+        // The blocked page is served as HTML (403) — show it as before.
+        if (resp.status === 403 && type.includes('text/html')) {
+          const html = await resp.text();
+          document.open();
+          document.write(html);
+          document.close();
+          return;
+        }
+
+        throw new Error(resp.status);
+
+      } catch (err) {
+        console.error('Loupe verification error:', err);
+        hideProgress();
+        document.getElementById('card-auto').classList.add('hidden');
+        document.getElementById('card-manual').classList.add('hidden');
+        document.getElementById('card-done').classList.add('hidden');
+        document.getElementById('error-msg').style.display = 'block';
+      }
+    }
+})();
+  </script>
+</body>
+</html>

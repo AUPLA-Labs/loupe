@@ -1,0 +1,37 @@
+# Compiled binary
+/loupe
+
+# Backup files created ad hoc during operational changes
+*.bak
+
+# Runtime data: large/generated/sensitive, none of it belongs in version control
+/data/events.jsonl
+/data/audit.jsonl*
+/data/history/
+/data/*.mmdb
+/data/asn.aupldb
+/data/aupldb_token
+/data/datacenter_asns.txt
+/data/admin_auth.yaml
+/data/hmac_secret
+/data/openai_cidrs.txt
+/data/anthropic_cidrs.txt
+/data/perplexity_cidrs.txt
+
+# Verified-bot IP lists, fetched and cached by Loupe
+/data/ranges/
+/data/reputation.json
+/data/admin_sessions.json
+/data/badips.csv
+/data/badips.csv.meta.json
+/data/*.pre-*
+
+# Hand-made backups of binaries and config from operational changes
+/*.pre-*
+
+# Runtime state written by Loupe
+/data/overlay/
+/data/rules.yaml
+/data/under_attack.json
+/data/setup_token
+/dist/

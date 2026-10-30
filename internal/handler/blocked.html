@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>{{.T.title_blocked}}</title>
+<style>
+  @font-face {
+    font-family: 'Hubot Sans';
+    font-style: normal; font-weight: 200 900; font-display: swap;
+    src: url('/loupe/fonts/hubotsans.woff2') format('woff2');
+  }
+
+  /* Colour tokens; the dark set mirrors the admin console's palette. */
+  :root {
+    --bg: #fffffe;
+    --text: #0C0C0C;
+    --muted: #787878;
+    --accent: #9A7848;
+    --beam-rgb: 201,168,108;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15130F;
+      --text: #F1EDE4;
+      --muted: #948D7E;
+      --accent: #C9A15F;
+      --beam-rgb: 201,161,95;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    min-height: 100%;
+    font-family: 'Hubot Sans', system-ui, sans-serif;
+    background: var(--bg);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Bottom padding keeps the expanded explanation clear of the fixed footer. */
+  body {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px 16px 72px;
+  }
+
+  .bg-wrap {
+    position: fixed; inset: 0;
+    pointer-events: none; overflow: hidden;
+  }
+
+  .beam-cone {
+    position: absolute;
+    top: -40px; left: 50%;
+    transform: translateX(-50%);
+    width: 900px; height: 680px;
+    background: radial-gradient(ellipse 520px 520px at 50% 0%,
+      rgba(var(--beam-rgb),0.14) 0%,
+      rgba(var(--beam-rgb),0.06) 35%,
+      transparent 68%);
+    animation: breathe 5s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% { opacity: 0.7; transform: translateX(-50%) scaleX(1); }
+    50%       { opacity: 1;   transform: translateX(-50%) scaleX(1.06); }
+  }
+
+  .ray {
+    position: absolute; top: 0; left: 50%;
+    height: 560px; width: 1px;
+    transform-origin: top center;
+    background: linear-gradient(to bottom, rgba(var(--beam-rgb),0.55), transparent);
+  }
+  .ray:nth-child(2) { transform: rotate(-30deg); opacity: 0.5; }
+  .ray:nth-child(3) { transform: rotate(-16deg); opacity: 0.7; }
+  .ray:nth-child(4) { transform: rotate(0deg);   opacity: 0.9; }
+  .ray:nth-child(5) { transform: rotate(16deg);  opacity: 0.7; }
+  .ray:nth-child(6) { transform: rotate(30deg);  opacity: 0.5; }
+
+  .floor-glow {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 200px;
+    background: radial-gradient(ellipse 50% 100% at 50% 100%,
+      rgba(var(--beam-rgb),0.07), transparent);
+  }
+
+  .card {
+    position: relative;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 24px;
+    padding: 52px 68px 44px;
+  }
+
+  .brand-name {
+    display: block; height: 32px; width: auto; margin-inline: auto; color: var(--text);
+  }
+
+  .text-block {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 8px; text-align: center;
+  }
+
+  .status-line {
+    font-size: 22px; font-weight: 500;
+    color: var(--text); letter-spacing: -0.02em;
+  }
+
+  .sub-line {
+    font-size: 14px; font-weight: 400;
+    color: var(--muted); line-height: 1.65;
+  }
+
+  .why {
+    max-width: 440px; margin-top: 4px;
+    font-size: 13px; color: var(--muted); line-height: 1.6; text-align: left;
+  }
+  .why summary {
+    cursor: pointer; text-align: center; color: var(--accent);
+    text-decoration: underline; text-underline-offset: 2px;
+  }
+  .why p, .why ul { margin-top: 10px; }
+  .why ul { padding-left: 18px; }
+  .why li + li { margin-top: 4px; }
+  .why strong { color: var(--text); font-weight: 500; }
+
+  @media (max-width: 520px) {
+    .card { padding: 40px 8px 32px; }
+  }
+
+  .footer {
+    position: fixed; bottom: 14px;
+    font-size: 11px; color: var(--muted); opacity: 0.75;
+  }
+  .footer a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<div class="bg-wrap">
+  <div class="beam-cone"></div>
+  <div class="ray"></div>
+  <div class="ray"></div>
+  <div class="ray"></div>
+  <div class="ray"></div>
+  <div class="ray"></div>
+  <div class="floor-glow"></div>
+</div>
+
+<div class="card">
+  {{template "wordmark"}}
+  <div class="text-block">
+    <div class="status-line">{{.T.blocked_status}}</div>
+    <div class="sub-line">
+      {{.T.blocked_sub}}
+    </div>
+  </div>
+  <details class="why">
+    <summary>{{.T.why}}</summary>
+    <p>{{.T.blocked_why_intro}}</p>
+    <p>{{.T.blocked_why_list_intro}}</p>
+    <ul>
+      <li>{{.T.blocked_why_shared}}</li>
+      <li>{{.T.blocked_why_vpn}}</li>
+      <li>{{.T.blocked_why_ext}}</li>
+    </ul>
+    <p>{{.T.blocked_why_todo}}</p>
+  </details>
+</div>
+
+<div class="footer">{{template "footer" .Footer}}</div>
+</body>
+</html>

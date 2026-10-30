@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "_comment": "Lists of addresses that change too often for the twice-daily .aupldb build. Every WAF node fetches these itself, from the publisher, on each source's own cadence (aupldb.Overlay). Curated from OpenASN's fetch-manifest.json (https://github.com/openasn/openasn), 28 Oct 2026; each URL verified live that day. Parsers: lines (first field per line is an IP or prefix), geofeed (RFC 8805 CSV: prefix,country,...), json (string values, or arrays of them, under the listed keys), regex (first capture group). Clients skip parsers and classes they don't know.",
+  "sources": [
+    {"id": "tor_exits", "class": "tor_exit", "provider": "Tor", "url": "https://check.torproject.org/torbulkexitlist", "parser": "lines", "cadence_hours": 1},
+
+    {"id": "apple_private_relay", "class": "relay", "provider": "iCloud Private Relay", "url": "https://mask-api.icloud.com/egress-ip-ranges.csv", "parser": "geofeed", "cadence_hours": 24,
+     "notes": "Apple asks sites to treat Private Relay like carrier-grade NAT: recognise, don't block. Egress ranges sit inside Cloudflare and Akamai space."},
+
+    {"id": "aws", "class": "hosting", "provider": "AWS", "url": "https://ip-ranges.amazonaws.com/ip-ranges.json", "parser": "json", "keys": ["ip_prefix", "ipv6_prefix"], "cadence_hours": 24},
+    {"id": "gcp", "class": "hosting", "provider": "Google Cloud", "url": "https://www.gstatic.com/ipranges/cloud.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "oracle", "class": "hosting", "provider": "Oracle Cloud", "url": "https://docs.oracle.com/en-us/iaas/tools/public_ip_ranges.json", "parser": "json", "keys": ["cidr"], "cadence_hours": 168},
+    {"id": "digitalocean", "class": "hosting", "provider": "DigitalOcean", "url": "https://www.digitalocean.com/geo/google.csv", "parser": "geofeed", "cadence_hours": 168},
+    {"id": "linode", "class": "hosting", "provider": "Akamai Cloud (Linode)", "url": "https://geoip.linode.com/", "parser": "geofeed", "cadence_hours": 168},
+    {"id": "vultr", "class": "hosting", "provider": "Vultr", "url": "https://geofeed.constant.com/", "parser": "geofeed", "cadence_hours": 168},
+
+    {"id": "cloudflare_v4", "class": "cdn", "provider": "Cloudflare", "url": "https://www.cloudflare.com/ips-v4", "parser": "lines", "cadence_hours": 168,
+     "notes": "Context only, never a verdict: WARP and iCloud Private Relay egress live inside these ranges."},
+    {"id": "cloudflare_v6", "class": "cdn", "provider": "Cloudflare", "url": "https://www.cloudflare.com/ips-v6", "parser": "lines", "cadence_hours": 168},
+
+    {"id": "googlebot", "class": "crawler", "provider": "Googlebot", "url": "https://developers.google.com/static/crawling/ipranges/common-crawlers.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "google_special_crawlers", "class": "crawler", "provider": "Google special-case crawlers", "url": "https://developers.google.com/static/crawling/ipranges/special-crawlers.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "google_user_fetchers", "class": "fetcher", "provider": "Google user-triggered fetchers", "url": "https://developers.google.com/static/crawling/ipranges/user-triggered-fetchers-google.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "google_agent", "class": "fetcher", "provider": "Google-Agent", "url": "https://developers.google.com/static/crawling/ipranges/user-triggered-agents.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "openai_gptbot", "class": "crawler", "provider": "GPTBot", "url": "https://openai.com/gptbot.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "openai_searchbot", "class": "crawler", "provider": "OAI-SearchBot", "url": "https://openai.com/searchbot.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "openai_adsbot", "class": "crawler", "provider": "OAI-AdsBot", "url": "https://openai.com/adsbot.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "openai_chatgpt_user", "class": "fetcher", "provider": "ChatGPT-User", "url": "https://openai.com/chatgpt-user.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 6},
+    {"id": "anthropic", "class": "crawler", "provider": "Anthropic (ClaudeBot, Claude-User, Claude-SearchBot)", "url": "https://claude.com/crawling/bots.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 12},
+    {"id": "applebot", "class": "crawler", "provider": "Applebot", "url": "https://search.developer.apple.com/applebot.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "ccbot", "class": "crawler", "provider": "CCBot (Common Crawl)", "url": "https://index.commoncrawl.org/ccbot.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 168},
+    {"id": "duckduckbot", "class": "crawler", "provider": "DuckDuckBot", "url": "https://duckduckgo.com/duckduckbot.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "perplexitybot", "class": "crawler", "provider": "PerplexityBot", "url": "https://www.perplexity.ai/perplexitybot.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "perplexity_user", "class": "fetcher", "provider": "Perplexity-User", "url": "https://www.perplexity.ai/perplexity-user.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "mistralai_user", "class": "fetcher", "provider": "MistralAI-User", "url": "https://mistral.ai/mistralai-user-ips.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+    {"id": "mistralai_index", "class": "crawler", "provider": "MistralAI-Index", "url": "https://mistral.ai/mistralai-index-ips.json", "parser": "json", "keys": ["ipv4Prefix", "ipv6Prefix"], "cadence_hours": 24},
+
+    {"id": "protonvpn", "class": "vpn", "provider": "Proton VPN", "url": "https://raw.githubusercontent.com/tn3w/ProtonVPN-IPs/master/protonvpn_ips.txt", "parser": "lines", "cadence_hours": 24,
+     "notes": "Exit IPs from Proton's own API, collected by tn3w/ProtonVPN-IPs (Apache-2.0); Proton's API needs app authentication."},
+    {"id": "mullvad", "class": "vpn", "provider": "Mullvad", "url": "https://api.mullvad.net/www/relays/all/", "parser": "json", "keys": ["ipv4_addr_in", "ipv6_addr_in"], "cadence_hours": 24},
+    {"id": "ivpn", "class": "vpn", "provider": "IVPN", "url": "https://api.ivpn.net/v4/servers.json", "parser": "json", "keys": ["host", "ip_addresses"], "cadence_hours": 24},
+    {"id": "pia", "class": "vpn", "provider": "Private Internet Access", "url": "https://serverlist.piaservers.net/vpninfo/servers/v7", "parser": "json", "keys": ["ip"], "cadence_hours": 24},
+    {"id": "airvpn", "class": "vpn", "provider": "AirVPN", "url": "https://airvpn.org/api/status/", "parser": "json",
+     "keys": ["ip_v4_in1", "ip_v4_in2", "ip_v4_in3", "ip_v4_in4", "ip_v6_in1", "ip_v6_in2", "ip_v6_in3", "ip_v6_in4"], "cadence_hours": 24},
+    {"id": "windscribe", "class": "vpn", "provider": "Windscribe", "url": "https://assets.windscribe.com/serverlist/mob-v2/1/0", "parser": "json", "keys": ["ip", "ip2", "ip3"], "cadence_hours": 24},
+    {"id": "privadovpn", "class": "vpn", "provider": "PrivadoVPN", "url": "https://privadovpn.com/apps/servers_export.json", "parser": "json", "keys": ["ip"], "cadence_hours": 24},
+    {"id": "riseupvpn", "class": "vpn", "provider": "RiseupVPN", "url": "https://api.black.riseup.net/3/config/eip-service.json", "parser": "json", "keys": ["ip_address"], "cadence_hours": 24},
+    {"id": "ipvanish", "class": "vpn", "provider": "IPVanish", "url": "https://api.wlvpn.com/v2/list/wlvpnserverList.xml", "parser": "regex", "pattern": "\\sip=\"([^\"]+)\"", "cadence_hours": 24},
+    {"id": "ovpn", "class": "vpn", "provider": "OVPN", "url": "https://www.ovpn.com/v2/api/client/entry", "parser": "json", "keys": ["ip"], "cadence_hours": 24},
+    {"id": "anonine", "class": "vpn", "provider": "Anonine", "url": "https://anonine.com/www/server-status", "parser": "json", "keys": ["ips", "primary_ip"], "cadence_hours": 24}
+  ]
+}

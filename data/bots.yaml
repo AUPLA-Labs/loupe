@@ -1,0 +1,19 @@
+# Loupe bot policy — managed from the dashboard (Bots page).
+# Hand edits are picked up within a few seconds. See internal/bots/catalog.yaml
+# for every built-in bot, category and IP list.
+#
+#   categories: per-category action (allow | standard | block); unset = built-in default
+#   bots:       per-bot overrides of its category's action
+#   spoofed:    a request claiming a verifiable bot that fails verification —
+#               standard (normal protection) or block
+#   unverifiable: bots with no IP list, network or reverse DNS to check —
+#               block (default) or standard; a per-bot "standard" exempts one
+#   robots:     mode off | merge (prepend to the site's robots.txt) | replace;
+#               content_signals adds a contentsignals.org line
+#   custom:     your own bots, same fields as the built-in catalog
+categories:
+  advertising: block
+spoofed: block
+unverifiable: block
+robots:
+  mode: merge

@@ -1,0 +1,289 @@
+# Loupe's built-in bot directory. Compiled into the binary; site policy
+# (allow / standard / block per category or bot) and custom bots live in the
+# separate policy file the dashboard edits (bots.policy_file).
+#
+# Verification — a request only counts as a bot when its User-Agent contains
+# one of the bot's ua tokens AND its IP passes at least one check:
+#   ranges: named sources below — official IP lists the operator publishes,
+#           fetched and cached by Loupe, refreshed daily
+#   ptr:    reverse DNS must end in one of these suffixes and resolve back
+#   asn:    the IP's network (from the GeoLite2 ASN database) must be one of
+#           these — used for operators that crawl only from their own network
+# A bot with none of these can never be allowed (a header alone is not proof);
+# it can only be left to standard protection or blocked.
+#
+# ua tokens match case-insensitively; the longest matching token wins, so
+# "Perplexity-User" never gets mistaken for "PerplexityBot".
+#
+# robots: the bot's robots.txt user-agent tokens, used when Loupe manages
+# robots.txt. Defaults to the ua tokens (cut at the first "/"); set it where
+# those differ, or norobots: true for tools that never read robots.txt.
+# A category's robots tokens are added whenever the category is blocked —
+# for opt-out tokens that aren't crawlers of their own (Google-Extended).
+
+categories:
+  - id: search
+    name: Search engines
+    about: Discover and index pages for traditional search results.
+    default: allow
+  - id: ai_search
+    name: AI search
+    about: Index content for AI-powered search and answer engines, with citations back to the source.
+    default: allow
+  - id: ai_assistant
+    name: AI assistants
+    about: Fetch a page live because a person asked an AI assistant or agent to read it.
+    default: allow
+  - id: ai_training
+    name: AI training
+    about: Crawl content to build datasets for training or fine-tuning AI models.
+    default: block
+    robots: [Google-Extended, Applebot-Extended]
+  - id: preview
+    name: Link previews
+    about: Fetch a page's title and image when a link is shared in social apps and messengers.
+    default: allow
+  - id: seo
+    name: SEO tools
+    about: Crawl sites to analyse rankings, backlinks and technical SEO for marketing tools.
+    default: allow
+  - id: monitoring
+    name: Monitoring & webhooks
+    about: Check uptime and performance, verify ownership, or deliver webhooks.
+    default: allow
+  - id: feed
+    name: Feed readers
+    about: Poll RSS and Atom feeds for reader apps.
+    default: allow
+  - id: archiver
+    name: Archivers
+    about: Save snapshots of pages for historical preservation.
+    default: allow
+  - id: advertising
+    name: Advertising
+    about: Check landing pages and ad placements for ad networks.
+    default: allow
+
+sources:
+  google-common:        {operator: Google, url: "https://developers.google.com/static/crawling/ipranges/common-crawlers.json"}
+  google-special:       {operator: Google, url: "https://developers.google.com/static/crawling/ipranges/special-crawlers.json"}
+  google-user:          {operator: Google, url: "https://developers.google.com/static/crawling/ipranges/user-triggered-fetchers.json"}
+  google-user-google:   {operator: Google, url: "https://developers.google.com/static/crawling/ipranges/user-triggered-fetchers-google.json"}
+  google-agents:        {operator: Google, url: "https://developers.google.com/static/crawling/ipranges/user-triggered-agents.json"}
+  bing:                 {operator: Microsoft, url: "https://www.bing.com/toolbox/bingbot.json"}
+  apple:                {operator: Apple, url: "https://search.developer.apple.com/applebot.json"}
+  duckduckbot:          {operator: DuckDuckGo, url: "https://duckduckgo.com/duckduckbot.json"}
+  duckassistbot:        {operator: DuckDuckGo, url: "https://duckduckgo.com/duckassistbot.json"}
+  openai-gptbot:        {operator: OpenAI, url: "https://openai.com/gptbot.json"}
+  openai-searchbot:     {operator: OpenAI, url: "https://openai.com/searchbot.json"}
+  openai-chatgpt-user:  {operator: OpenAI, url: "https://openai.com/chatgpt-user.json"}
+  anthropic:            {operator: Anthropic, url: "https://claude.com/crawling/bots.json"}
+  perplexity-bot:       {operator: Perplexity, url: "https://www.perplexity.ai/perplexitybot.json"}
+  perplexity-user:      {operator: Perplexity, url: "https://www.perplexity.ai/perplexity-user.json"}
+  mistral-user:         {operator: Mistral AI, url: "https://mistral.ai/mistralai-user-ips.json"}
+  mistral-index:        {operator: Mistral AI, url: "https://mistral.ai/mistralai-index-ips.json"}
+  amazon-bot:           {operator: Amazon, url: "https://developer.amazon.com/amazonbot/ip-addresses/"}
+  amazon-searchbot:     {operator: Amazon, url: "https://developer.amazon.com/amazonbot/searchbot-ip-addresses/"}
+  amazon-user:          {operator: Amazon, url: "https://developer.amazon.com/amazonbot/live-ip-addresses/"}
+  commoncrawl:          {operator: Common Crawl, url: "https://index.commoncrawl.org/ccbot.json"}
+  ahrefs:               {operator: Ahrefs, url: "https://api.ahrefs.com/v3/public/crawler-ips"}
+  telegram:             {operator: Telegram, url: "https://core.telegram.org/resources/cidr.txt"}
+  uptimerobot:          {operator: UptimeRobot, url: "https://uptimerobot.com/inc/files/ips/IPv4andIPv6.txt"}
+  pingdom-v4:           {operator: Pingdom, url: "https://my.pingdom.com/probes/ipv4"}
+  pingdom-v6:           {operator: Pingdom, url: "https://my.pingdom.com/probes/ipv6"}
+  betterstack:          {operator: Better Stack, url: "https://uptime.betterstack.com/ips.txt"}
+  webpagetest:          {operator: WebPageTest, url: "https://www.webpagetest.org/addresses.php?f=json"}
+  stripe-webhooks:      {operator: Stripe, url: "https://stripe.com/files/ips/ips_webhooks.txt"}
+
+bots:
+  # ── Search engines ───────────────────────────────────────────────────────
+  - {id: googlebot, name: Googlebot, operator: Google, category: search, ua: [Googlebot], ranges: [google-common], ptr: [.googlebot.com, .google.com],
+     docs: "https://developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers", about: "Google Search, Images, Video and News indexing."}
+  - {id: google-inspectiontool, name: Google-InspectionTool, operator: Google, category: search, ua: [Google-InspectionTool], ranges: [google-common], ptr: [.googlebot.com, .google.com],
+     about: "Search Console URL inspection and the Rich Results test."}
+  - {id: googleother, name: GoogleOther, operator: Google, category: search, ua: [GoogleOther], ranges: [google-common], ptr: [.googlebot.com, .google.com],
+     about: "Generic Google crawler used by product teams for one-off fetches and research."}
+  - {id: storebot-google, name: Storebot-Google, operator: Google, category: search, ua: [Storebot-Google], ranges: [google-common], ptr: [.googlebot.com, .google.com],
+     about: "Google Shopping product page crawler."}
+  - {id: bingbot, name: Bingbot, operator: Microsoft, category: search, ua: [bingbot], ranges: [bing], ptr: [.search.msn.com],
+     docs: "https://www.bing.com/webmasters/help/which-crawlers-does-bing-use-8c184ec0", about: "Bing Search — also feeds DuckDuckGo, Ecosia, Yahoo and Copilot answers."}
+  - {id: applebot, name: Applebot, operator: Apple, category: search, ua: [Applebot], ranges: [apple], ptr: [.applebot.apple.com],
+     docs: "https://support.apple.com/en-us/119829", about: "Siri and Spotlight suggestions. Training opt-out is the separate robots.txt token Applebot-Extended."}
+  - {id: duckduckbot, name: DuckDuckBot, operator: DuckDuckGo, category: search, ua: [DuckDuckBot], ranges: [duckduckbot],
+     docs: "https://duckduckgo.com/duckduckgo-help-pages/results/duckduckbot", about: "DuckDuckGo's own index."}
+  - {id: yandexbot, name: YandexBot, operator: Yandex, category: search, ua: [YandexBot, YandexImages, YandexMobileBot, YandexRenderResourcesBot, YandexAccessibilityBot], ptr: [.yandex.ru, .yandex.net, .yandex.com],
+     docs: "https://yandex.com/support/webmaster/robot-workings/check-yandex-robots.html", about: "Yandex Search."}
+  - {id: baiduspider, name: Baiduspider, operator: Baidu, category: search, ua: [Baiduspider], ptr: [.baidu.com, .baidu.jp],
+     about: "Baidu Search."}
+  - {id: yahoo-slurp, name: Yahoo Slurp, operator: Yahoo, category: search, ua: ["Yahoo! Slurp"], robots: [Slurp], ptr: [.crawl.yahoo.net],
+     about: "Yahoo's legacy crawler (Yahoo results now mostly come from Bing)."}
+  - {id: seznambot, name: SeznamBot, operator: Seznam, category: search, ua: [SeznamBot], ptr: [.seznam.cz],
+     about: "Seznam.cz, the main Czech search engine."}
+  - {id: naver-yeti, name: Yeti (Naver), operator: Naver, category: search, ua: ["Yeti/"], robots: [Yeti], ptr: [.naver.com],
+     about: "Naver, the main Korean search engine."}
+  - {id: petalbot, name: PetalBot, operator: Huawei, category: search, ua: [PetalBot], ptr: [.petalsearch.com],
+     about: "Huawei Petal Search."}
+  - {id: qwantbot, name: Qwantbot, operator: Qwant, category: search, ua: [Qwantbot], ptr: [.qwant.com],
+     about: "Qwant, a European search engine."}
+  - {id: mojeekbot, name: MojeekBot, operator: Mojeek, category: search, ua: [MojeekBot], ptr: [.mojeek.com],
+     about: "Mojeek, an independent UK search engine."}
+  - {id: coccocbot, name: coccocbot, operator: Cốc Cốc, category: search, ua: [coccocbot], ptr: [.coccoc.com],
+     about: "Cốc Cốc, a Vietnamese search engine."}
+  - {id: sogou, name: Sogou spider, operator: Sogou, category: search, ua: ["Sogou web spider"], robots: [Sogou], ptr: [.sogou.com],
+     about: "Sogou, a Chinese search engine."}
+  - {id: bravebot, name: Bravebot, operator: Brave, category: search, ua: [Bravebot],
+     about: "Brave Search's independent index. No published IP list, so it can't be verified."}
+
+  # ── AI search ────────────────────────────────────────────────────────────
+  - {id: oai-searchbot, name: OAI-SearchBot, operator: OpenAI, category: ai_search, ua: [OAI-SearchBot], ranges: [openai-searchbot],
+     docs: "https://platform.openai.com/docs/bots", about: "ChatGPT search results and citations. Not used for training."}
+  - {id: claude-searchbot, name: Claude-SearchBot, operator: Anthropic, category: ai_search, ua: [Claude-SearchBot], ranges: [anthropic],
+     docs: "https://support.claude.com/en/articles/8896518", about: "Indexes pages to improve Claude's search results."}
+  - {id: perplexitybot, name: PerplexityBot, operator: Perplexity, category: ai_search, ua: [PerplexityBot], ranges: [perplexity-bot],
+     docs: "https://docs.perplexity.ai/guides/bots", about: "Perplexity's search index. Not used for training."}
+  - {id: duckassistbot, name: DuckAssistBot, operator: DuckDuckGo, category: ai_search, ua: [DuckAssistBot], ranges: [duckassistbot],
+     about: "DuckDuckGo's AI-assisted answers."}
+  - {id: mistralai-index, name: MistralAI-Index, operator: Mistral AI, category: ai_search, ua: [MistralAI-Index], ranges: [mistral-index],
+     docs: "https://docs.mistral.ai/robots", about: "Mistral search index for Le Chat answers. Not used for training."}
+  - {id: amzn-searchbot, name: Amzn-SearchBot, operator: Amazon, category: ai_search, ua: [Amzn-SearchBot], ranges: [amazon-searchbot],
+     docs: "https://developer.amazon.com/amazonbot", about: "Search for Alexa and Rufus. Not used for generative AI training."}
+  - {id: meta-webindexer, name: Meta-WebIndexer, operator: Meta, category: ai_search, ua: [meta-webindexer], asn: [32934],
+     docs: "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/", about: "Meta AI search results and citations."}
+  - {id: youbot, name: YouBot, operator: You.com, category: ai_search, ua: [YouBot],
+     about: "You.com AI search. No published IP list."}
+  - {id: exabot, name: ExaBot, operator: Exa, category: ai_search, ua: [ExaBot],
+     about: "Exa's AI search API index. No published IP list."}
+
+  # ── AI assistants (user-triggered) ───────────────────────────────────────
+  - {id: chatgpt-user, name: ChatGPT-User, operator: OpenAI, category: ai_assistant, ua: [ChatGPT-User], ranges: [openai-chatgpt-user],
+     docs: "https://platform.openai.com/docs/bots", about: "Fetches a page when a ChatGPT user or custom GPT asks for it."}
+  - {id: claude-user, name: Claude-User, operator: Anthropic, category: ai_assistant, ua: [Claude-User], ranges: [anthropic],
+     docs: "https://support.claude.com/en/articles/8896518", about: "Fetches a page when a Claude user asks a question that needs it."}
+  - {id: perplexity-user, name: Perplexity-User, operator: Perplexity, category: ai_assistant, ua: [Perplexity-User], ranges: [perplexity-user],
+     docs: "https://docs.perplexity.ai/guides/bots", about: "Fetches a page when a Perplexity user asks for it."}
+  - {id: mistralai-user, name: MistralAI-User, operator: Mistral AI, category: ai_assistant, ua: [MistralAI-User], ranges: [mistral-user],
+     docs: "https://docs.mistral.ai/robots", about: "Le Chat browsing on a user's request."}
+  - {id: amzn-user, name: Amzn-User, operator: Amazon, category: ai_assistant, ua: [Amzn-User], ranges: [amazon-user],
+     docs: "https://developer.amazon.com/amazonbot", about: "Live fetches answering Alexa users' requests."}
+  - {id: meta-externalfetcher, name: Meta-ExternalFetcher, operator: Meta, category: ai_assistant, ua: [meta-externalfetcher], asn: [32934],
+     docs: "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/", about: "Fetches links at a Meta AI user's request."}
+  - {id: google-agent, name: Google agents, operator: Google, category: ai_assistant, ua: [Google-Agent, GoogleAgent-], ranges: [google-agents, google-user-google],
+     docs: "https://developers.google.com/crawling/docs/crawlers-fetchers/google-user-triggered-fetchers", about: "Gemini agents and URL context fetches acting for a user."}
+
+  # ── AI training ──────────────────────────────────────────────────────────
+  - {id: gptbot, name: GPTBot, operator: OpenAI, category: ai_training, ua: [GPTBot], ranges: [openai-gptbot],
+     docs: "https://platform.openai.com/docs/bots", about: "Collects content that may be used to train OpenAI's models."}
+  - {id: claudebot, name: ClaudeBot, operator: Anthropic, category: ai_training, ua: [ClaudeBot, Claude-Web, anthropic-ai], ranges: [anthropic],
+     docs: "https://support.claude.com/en/articles/8896518", about: "Collects content that may be used to train Anthropic's models."}
+  - {id: ccbot, name: CCBot, operator: Common Crawl, category: ai_training, ua: [CCBot], ranges: [commoncrawl],
+     docs: "https://commoncrawl.org/ccbot", about: "Common Crawl's open web archive — the most widely used AI training corpus."}
+  - {id: amazonbot, name: Amazonbot, operator: Amazon, category: ai_training, ua: [Amazonbot], ranges: [amazon-bot], ptr: [.crawl.amazon.com],
+     docs: "https://developer.amazon.com/amazonbot", about: "Improves Amazon services and may be used to train Amazon AI models."}
+  - {id: meta-externalagent, name: Meta-ExternalAgent, operator: Meta, category: ai_training, ua: [meta-externalagent], asn: [32934],
+     docs: "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/", about: "Crawls for training Meta's AI models and indexing."}
+  - {id: facebookbot, name: FacebookBot, operator: Meta, category: ai_training, ua: [FacebookBot], asn: [32934],
+     about: "Meta's crawler for improving language and speech models."}
+  - {id: mistralai-training, name: MistralAI-Training, operator: Mistral AI, category: ai_training, ua: [MistralAI-Training],
+     docs: "https://docs.mistral.ai/robots", about: "Builds Mistral training datasets. No published IP list."}
+  - {id: bytespider, name: Bytespider, operator: ByteDance, category: ai_training, ua: [Bytespider],
+     about: "ByteDance (TikTok, Doubao) training crawler. Known to ignore robots.txt."}
+  - {id: ai2bot, name: AI2Bot, operator: Allen Institute for AI, category: ai_training, ua: [AI2Bot, Ai2Bot-Dolma],
+     about: "Collects data for training open language models (OLMo, Dolma)."}
+  - {id: cohere-training, name: Cohere training crawler, operator: Cohere, category: ai_training, ua: [cohere-training-data-crawler],
+     about: "Training data for Cohere's models."}
+  - {id: diffbot, name: Diffbot, operator: Diffbot, category: ai_training, ua: [Diffbot],
+     about: "Builds a commercial knowledge graph from web pages."}
+  - {id: deepseekbot, name: DeepSeekBot, operator: DeepSeek, category: ai_training, ua: [DeepSeekBot],
+     about: "DeepSeek training data."}
+  - {id: pangubot, name: PanguBot, operator: Huawei, category: ai_training, ua: [PanguBot],
+     about: "Huawei PanGu model training."}
+  - {id: timpibot, name: Timpibot, operator: Timpi, category: ai_training, ua: [Timpibot],
+     about: "Timpi's decentralised index, sold as LLM training data."}
+  - {id: omgili, name: Webz.io (omgili), operator: Webz.io, category: ai_training, ua: [omgili, Webzio-Extended],
+     about: "Webz.io's crawler; the data is sold, including for AI training."}
+  - {id: imagesiftbot, name: ImagesiftBot, operator: ImageSift, category: ai_training, ua: [ImagesiftBot],
+     about: "Builds a searchable image index for web intelligence."}
+  - {id: img2dataset, name: img2dataset, operator: Open source, category: ai_training, ua: [img2dataset],
+     about: "Tool for downloading image datasets for model training."}
+  - {id: grokbot, name: GrokBot, operator: xAI, category: ai_training, ua: [GrokBot, xAI-Grok],
+     about: "xAI content collection for Grok."}
+
+  # ── Link previews ────────────────────────────────────────────────────────
+  - {id: facebookexternalhit, name: Facebook / Instagram preview, operator: Meta, category: preview, ua: [facebookexternalhit, facebookcatalog], asn: [32934],
+     docs: "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/", about: "Link previews on Facebook, Instagram and Messenger."}
+  - {id: whatsapp, name: WhatsApp preview, operator: Meta, category: preview, ua: [WhatsApp], asn: [32934],
+     about: "Link previews in WhatsApp chats."}
+  - {id: twitterbot, name: Twitterbot, operator: X, category: preview, ua: [Twitterbot], asn: [13414],
+     about: "Link cards on X (Twitter)."}
+  - {id: linkedinbot, name: LinkedInBot, operator: LinkedIn, category: preview, ua: [LinkedInBot], asn: [14413],
+     about: "Link previews in LinkedIn posts and messages."}
+  - {id: telegrambot, name: TelegramBot, operator: Telegram, category: preview, ua: [TelegramBot], ranges: [telegram],
+     about: "Link previews in Telegram chats."}
+  - {id: pinterestbot, name: Pinterestbot, operator: Pinterest, category: preview, ua: [Pinterestbot], ptr: [.pinterest.com],
+     about: "Rich Pins and pin previews."}
+  - {id: slackbot, name: Slackbot, operator: Slack, category: preview, ua: [Slackbot-LinkExpanding, Slack-ImgProxy, Slackbot],
+     about: "Link unfurls in Slack. Runs on AWS without a published IP list, so it can't be verified."}
+  - {id: discordbot, name: Discordbot, operator: Discord, category: preview, ua: [Discordbot],
+     about: "Link embeds in Discord. No published IP list."}
+  - {id: mastodon, name: Mastodon, operator: Fediverse servers, category: preview, ua: ["Mastodon/"], norobots: true,
+     about: "Link previews fetched by every Mastodon server a post reaches. Can't be verified."}
+  - {id: redditbot, name: redditbot, operator: Reddit, category: preview, ua: [redditbot],
+     about: "Link previews on Reddit. No published IP list."}
+
+  # ── SEO tools ────────────────────────────────────────────────────────────
+  - {id: ahrefsbot, name: AhrefsBot, operator: Ahrefs, category: seo, ua: [AhrefsBot, AhrefsSiteAudit], ranges: [ahrefs], ptr: [.ahrefs.com, .ahrefs.net],
+     docs: "https://ahrefs.com/robot", about: "Ahrefs backlink index and Site Audit."}
+  - {id: semrushbot, name: SemrushBot, operator: Semrush, category: seo, ua: [SemrushBot], ptr: [.semrush.com],
+     docs: "https://www.semrush.com/bot/", about: "Semrush backlink and site audit crawler."}
+  - {id: mj12bot, name: MJ12bot, operator: Majestic, category: seo, ua: [MJ12bot],
+     about: "Majestic's link index — a distributed crawler with no fixed IPs."}
+  - {id: dotbot, name: DotBot, operator: Moz, category: seo, ua: [DotBot, rogerbot],
+     about: "Moz link index and site crawl."}
+  - {id: dataforseobot, name: DataForSeoBot, operator: DataForSEO, category: seo, ua: [DataForSeoBot],
+     about: "SEO data API backlink crawler."}
+  - {id: blexbot, name: BLEXBot, operator: WebMeUp, category: seo, ua: [BLEXBot],
+     about: "Backlink crawler for SEO tools."}
+  - {id: barkrowler, name: Barkrowler, operator: Babbar, category: seo, ua: [Barkrowler],
+     about: "Babbar's SEO link graph."}
+  - {id: serpstatbot, name: serpstatbot, operator: Serpstat, category: seo, ua: [serpstatbot],
+     about: "Serpstat backlink crawler."}
+  - {id: screaming-frog, name: Screaming Frog, operator: Screaming Frog, category: seo, ua: ["Screaming Frog SEO Spider"], norobots: true,
+     about: "Desktop SEO crawler run by individual users from their own machines."}
+
+  # ── Monitoring & webhooks ────────────────────────────────────────────────
+  - {id: uptimerobot, name: UptimeRobot, operator: UptimeRobot, category: monitoring, ua: [UptimeRobot], norobots: true, ranges: [uptimerobot],
+     about: "Uptime and keyword monitoring."}
+  - {id: pingdom, name: Pingdom, operator: SolarWinds, category: monitoring, ua: [Pingdom.com_bot, PingdomPageSpeed], norobots: true, ranges: [pingdom-v4, pingdom-v6],
+     about: "Uptime and page speed monitoring."}
+  - {id: betterstack, name: Better Stack, operator: Better Stack, category: monitoring, ua: [Better Uptime, Better Stack, BetterStack], norobots: true, ranges: [betterstack],
+     about: "Better Stack (Better Uptime) monitors."}
+  - {id: webpagetest, name: WebPageTest, operator: Catchpoint, category: monitoring, ua: ["PTST/"], norobots: true, ranges: [webpagetest],
+     about: "WebPageTest performance test agents."}
+  - {id: google-site-verification, name: Google-Site-Verification, operator: Google, category: monitoring, ua: [Google-Site-Verification], norobots: true, ranges: [google-user, google-user-google],
+     about: "Search Console ownership checks."}
+  - {id: stripe-webhooks, name: Stripe webhooks, operator: Stripe, category: monitoring, ua: ["Stripe/1.0"], norobots: true, ranges: [stripe-webhooks],
+     docs: "https://docs.stripe.com/ips", about: "Stripe webhook deliveries."}
+
+  # ── Feed readers ─────────────────────────────────────────────────────────
+  - {id: feedfetcher-google, name: FeedFetcher-Google, operator: Google, category: feed, ua: [FeedFetcher-Google], ranges: [google-user-google, google-user],
+     about: "Google feed fetches, e.g. for Google News and Podcasts."}
+  - {id: feedly, name: Feedly, operator: Feedly, category: feed, ua: [Feedly],
+     about: "Feedly reader. No published IP list."}
+  - {id: inoreader, name: Inoreader, operator: Inoreader, category: feed, ua: [Inoreader],
+     about: "Inoreader feed reader."}
+  - {id: newsblur, name: NewsBlur, operator: NewsBlur, category: feed, ua: [NewsBlur],
+     about: "NewsBlur feed reader."}
+  - {id: feedbin, name: Feedbin, operator: Feedbin, category: feed, ua: [Feedbin],
+     about: "Feedbin feed reader."}
+
+  # ── Archivers ────────────────────────────────────────────────────────────
+  - {id: archive-org, name: Internet Archive, operator: Internet Archive, category: archiver, ua: [archive.org_bot, ia_archiver], ptr: [.archive.org],
+     about: "Wayback Machine snapshots."}
+
+  # ── Advertising ──────────────────────────────────────────────────────────
+  - {id: google-ads, name: AdsBot-Google / AdSense, operator: Google, category: advertising, ua: [AdsBot-Google, Mediapartners-Google, APIs-Google], ranges: [google-special], ptr: [.google.com],
+     docs: "https://developers.google.com/crawling/docs/crawlers-fetchers/google-special-case-crawlers", about: "Google Ads landing page quality and AdSense targeting."}
+  - {id: adidxbot, name: AdIdxBot, operator: Microsoft, category: advertising, ua: [adidxbot], ranges: [bing], ptr: [.search.msn.com],
+     about: "Microsoft Advertising landing page checks."}
+  - {id: meta-externalads, name: Meta-ExternalAds, operator: Meta, category: advertising, ua: [meta-externalads], asn: [32934],
+     about: "Meta crawler for ads and business products."}

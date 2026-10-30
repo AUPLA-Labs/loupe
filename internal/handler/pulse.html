@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/favicon.ico">
+  <noscript><meta http-equiv="refresh" content="0; url={{.NoJSPath}}"></noscript>
+  <title>{{.T.title_checking}}</title>
+  <style>
+    @font-face {
+      font-family: 'Hubot Sans';
+      font-style: normal; font-weight: 200 900; font-display: swap;
+      src: url('/loupe/fonts/hubotsans.woff2') format('woff2');
+    }
+
+    /* Colour tokens; the dark set mirrors the admin console's palette. */
+    :root {
+      --bg: #fffffe;
+      --text: #0C0C0C;
+      --muted: #787878;
+      --accent: #9A7848;
+      --wash-rgb: 100,100,100;
+      --ray-rgb: 160,160,160;
+      --spin-rgb: 82,82,82;
+      --spin: rgb(var(--spin-rgb));
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #15130F;
+        --text: #F1EDE4;
+        --muted: #948D7E;
+        --accent: #C9A15F;
+        --wash-rgb: 200,194,180;
+        --ray-rgb: 148,141,126;
+        --spin-rgb: 200,194,180;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Hubot Sans', system-ui, sans-serif;
+      background: var(--bg);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body { display: flex; align-items: center; justify-content: center; }
+
+    .bg-wrap {
+      position: fixed; inset: 0;
+      pointer-events: none; overflow: hidden;
+    }
+
+    .beam-cone {
+      position: absolute;
+      top: -40px; left: 50%;
+      transform: translateX(-50%);
+      width: 900px; height: 680px;
+      background: radial-gradient(ellipse 520px 520px at 50% 0%,
+        rgba(var(--wash-rgb),0.10) 0%,
+        rgba(var(--wash-rgb),0.04) 35%,
+        transparent 68%);
+      animation: breathe 5s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.7; transform: translateX(-50%) scaleX(1); }
+      50%       { opacity: 1;   transform: translateX(-50%) scaleX(1.06); }
+    }
+
+    .ray {
+      position: absolute; top: 0; left: 50%;
+      height: 560px; width: 1px;
+      transform-origin: top center;
+      background: linear-gradient(to bottom, rgba(var(--ray-rgb),0.55), transparent);
+    }
+    .ray:nth-child(2) { transform: rotate(-30deg); opacity: 0.5; }
+    .ray:nth-child(3) { transform: rotate(-16deg); opacity: 0.7; }
+    .ray:nth-child(4) { transform: rotate(0deg);   opacity: 0.9; }
+    .ray:nth-child(5) { transform: rotate(16deg);  opacity: 0.7; }
+    .ray:nth-child(6) { transform: rotate(30deg);  opacity: 0.5; }
+
+    .floor-glow {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 200px;
+      background: radial-gradient(ellipse 50% 100% at 50% 100%,
+        rgba(var(--ray-rgb),0.06), transparent);
+    }
+
+    .card {
+      position: relative;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 28px;
+      padding: 52px 68px 44px;
+    }
+
+    .brand-name {
+      display: block; height: 32px; width: auto; margin-inline: auto; color: var(--text);
+    }
+
+    .spinner-wrap {
+      position: relative; width: 64px; height: 64px;
+    }
+
+    .ring-track {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 1.5px solid rgba(var(--wash-rgb),0.14);
+    }
+
+    .ring-svg {
+      position: absolute; inset: 0;
+      width: 64px; height: 64px;
+      animation: spinArc 1.1s linear infinite;
+    }
+
+    #arcGrad stop { stop-color: var(--spin); }
+
+    @keyframes spinArc { to { transform: rotate(360deg); } }
+
+    .ring-svg circle {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-dasharray: 120 180;
+      stroke-dashoffset: 0;
+      stroke: url(#arcGrad);
+    }
+
+    .pulse-dot {
+      position: absolute; top: 50%; left: 50%;
+      width: 7px; height: 7px;
+      background: var(--spin);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: pulseDot 1.8s ease-in-out infinite;
+      box-shadow: 0 0 10px rgba(var(--spin-rgb),0.35);
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.75); }
+      50%       { opacity: 1;   transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    .text-block {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 7px; text-align: center;
+    }
+
+    .status-line {
+      font-size: 14.5px; font-weight: 500;
+      color: var(--text); letter-spacing: -0.01em;
+      display: flex; align-items: baseline; gap: 1px;
+    }
+
+    .dots span {
+      display: inline-block; opacity: 0;
+      animation: dotFade 1.5s ease-in-out infinite;
+    }
+    .dots span:nth-child(1) { animation-delay: 0.0s; }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotFade {
+      0%, 55%, 100% { opacity: 0; }
+      25%            { opacity: 1; }
+    }
+
+    .sub-line {
+      font-size: 12px; font-weight: 400;
+      color: var(--muted); letter-spacing: 0.01em; line-height: 1.6;
+    }
+
+    .state {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 28px;
+    }
+
+    .hidden { display: none !important; }
+
+    .footer {
+      position: fixed; bottom: 14px;
+      font-size: 11px; color: var(--muted); opacity: 0.75;
+    }
+
+    /* Done state (shown while redirecting after a pass) */
+    .done-svg { display: block; width: 64px; height: 64px; }
+    .done-svg circle, .done-svg path {
+      fill: none; stroke: var(--spin); stroke-linecap: round; stroke-linejoin: round;
+    }
+    .done-svg circle { stroke-width: 1.5; }
+    .done-svg path { stroke-width: 2; }
+  </style>
+</head>
+<body>
+
+  <div id="waf-cfg"
+       data-probe-result="{{.ProbeResultPath}}"
+       data-return-url="{{.ReturnURL}}"
+       data-challenge="{{.ChallengePath}}"
+       style="display:none"></div>
+
+  <div class="bg-wrap">
+    <div class="beam-cone"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="ray"></div>
+    <div class="floor-glow"></div>
+  </div>
+
+  <div class="card">
+
+    <svg width="0" height="0" style="position:absolute">
+      <defs>
+        <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#525252" stop-opacity="0"/>
+          <stop offset="60%"  stop-color="#525252" stop-opacity="0.7"/>
+          <stop offset="100%" stop-color="#525252" stop-opacity="1"/>
+        </linearGradient>
+      </defs>
+    </svg>
+
+    {{template "wordmark"}}
+
+    <div id="state-checking" class="state">
+      <div class="spinner-wrap">
+        <div class="ring-track"></div>
+        <svg class="ring-svg" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="30"/>
+        </svg>
+        <div class="pulse-dot"></div>
+      </div>
+
+      <div class="text-block">
+        <div class="status-line">
+          {{.T.checking}}<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+        </div>
+        <div class="sub-line">{{.T.checking_sub_pulse}}</div>
+      </div>
+    </div>
+
+    <div id="state-done" class="state hidden" role="status">
+      <svg class="done-svg" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="30"/>
+        <path d="M20 33 L28 41 L44 24"/>
+      </svg>
+
+      <div class="text-block">
+        <div class="status-line">{{.T.verified}}</div>
+        <div class="sub-line">{{.T.redirecting}}</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">{{template "footer" .Footer}}</div>
+
+  <script>{{.ProofJS}}</script>
+  <!-- Separate block: a failure in the collector must never take the proof
+       runtime down with it. A page without LoupeFP still answers and
+       scores fp_incomplete (a harder challenge), never gets stuck. -->
+  <script>{{.FingerprintJS}}</script>
+  <script>
+  (function () {
+    'use strict';
+    var PROOF = {{.Proof}};
+    var AUTOMATION_ARTIFACTS = {{.AutomationArtifactsJS}};
+
+    function resolvePath(path) {
+      var parts = path.split('.');
+      var obj = window;
+      for (var i = 0; i < parts.length - 1; i++) {
+        obj = obj && obj[parts[i]];
+      }
+      return obj ? obj[parts[parts.length - 1]] : undefined;
+    }
+
+    function hasAutomationArtifact(names) {
+      for (var i = 0; i < names.length; i++) {
+        try {
+          if (resolvePath(names[i]) !== undefined) return true;
+        } catch (_) {}
+      }
+      return false;
+    }
+
+    var NATIVE_FN_NAMES = {{.NativeFnNamesJS}};
+
+    function countTamperedNatives(names) {
+      var count = 0;
+      for (var i = 0; i < names.length; i++) {
+        try {
+          var fn = resolvePath(names[i]);
+          if (typeof fn === 'function' && fn.toString().indexOf('[native code]') === -1) count++;
+        } catch (_) {}
+      }
+      return count;
+    }
+
+    function computeNamedZoneOffsetMinutes(tz) {
+      try {
+        var dtf = new Intl.DateTimeFormat('en-US', {
+          timeZone: tz, hour12: false,
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+        });
+        var parts = dtf.formatToParts(new Date());
+        var map = {};
+        for (var i = 0; i < parts.length; i++) map[parts[i].type] = parts[i].value;
+        var asUTC = Date.UTC(map.year, map.month - 1, map.day, map.hour, map.minute, map.second);
+        return Math.round((asUTC - Date.now()) / 60000);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function checkTzOffsetMismatch() {
+      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      var computed = computeNamedZoneOffsetMinutes(tz);
+      if (computed === null) return false;
+      var actual = -new Date().getTimezoneOffset();
+      return Math.abs(computed - actual) > 1;
+    }
+
+    function canvasHasContent() {
+      try {
+        var c = document.createElement('canvas');
+        c.width = 200; c.height = 50;
+        var ctx = c.getContext('2d');
+        if (!ctx) return true; // no canvas support at all — not evidence either way
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillText('Loupe 0123456789', 2, 2);
+        var data = ctx.getImageData(0, 0, 200, 50).data;
+        for (var i = 3; i < data.length; i += 4) {
+          if (data[i] !== 0) return true;
+        }
+        return false;
+      } catch (_) {
+        return true;
+      }
+    }
+
+    function checkNotificationPermConflict() {
+      return new Promise(function (resolve) {
+        try {
+          if (!('permissions' in navigator) || !('Notification' in window)) { resolve(false); return; }
+          navigator.permissions.query({ name: 'notifications' }).then(function (status) {
+            var reported = Notification.permission;
+            var conflict = (reported === 'denied' && status.state === 'prompt') ||
+                           (reported === 'default' && status.state === 'denied');
+            resolve(conflict);
+          }).catch(function () { resolve(false); });
+        } catch (_) {
+          resolve(false);
+        }
+      });
+    }
+
+    var cfg           = document.getElementById('waf-cfg').dataset;
+    var endpoint      = cfg.probeResult;
+    var returnURL     = cfg.returnUrl;
+    var challengePath = cfg.challenge;
+
+    if (!PROOF || !endpoint) return;
+
+    var startTime = Date.now();
+
+    // Lumen runs in a Worker from the start, in parallel with the rAF
+    // sample below, so at base difficulty it adds little latency. Failure
+    // leaves pow null; the server then escalates instead of passing.
+    var pow = null;
+    var powDone = LoupeProof.solve(PROOF.l).then(
+      function (r) { pow = r; },
+      function () { pow = null; });
+
+    // Fingerprint collection runs alongside too; its async sections get
+    // whatever is left of 450ms, inside the interstitial's 500ms budget.
+    var fp = null;
+    var fpDone = Promise.resolve().then(function () {
+      return LoupeFP.collect(450);
+    }).then(
+      function (r) { fp = r; },
+      function () { fp = null; });
+
+    var rafIntervals = [];
+    var rafResolve;
+    var rafReady = new Promise(function (res) { rafResolve = res; });
+    var rafPrev = null, rafCount = 0;
+    var pageWasHidden = document.hidden;
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) pageWasHidden = true;
+    });
+    function rafFrame(ts) {
+      if (rafPrev !== null) rafIntervals.push(ts - rafPrev);
+      rafPrev = ts;
+      if (++rafCount < 32) requestAnimationFrame(rafFrame);
+      else rafResolve();
+    }
+    requestAnimationFrame(rafFrame);
+
+    function variance(arr) {
+      if (arr.length < 2) return 999;
+      var mean = arr.reduce(function (a, b) { return a + b; }, 0) / arr.length;
+      return arr.reduce(function (a, v) { return a + (v - mean) * (v - mean); }, 0) / arr.length;
+    }
+
+    function checkLanguageInconsistency() {
+      var lang  = navigator.language || '';
+      var langs = Array.prototype.slice.call(navigator.languages || []);
+      if (lang === '' || langs.length === 0) return false;
+      if (langs.indexOf(lang) !== -1) return false;
+      var base = lang.split('-')[0];
+      return !langs.some(function (l) { return l === base || l.indexOf(base + '-') === 0; });
+    }
+
+    function checkPlatformTzMismatch() {
+      var plat    = (navigator.platform || '').toLowerCase();
+      var tz      = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      var winP    = plat.indexOf('win') !== -1;
+      var linuxTz = tz === 'UTC' || tz === 'Etc/UTC' || tz.indexOf('Etc/') === 0;
+      return winP && linuxTz;
+    }
+
+    function getWebGLRenderer() {
+      try {
+        var gl = document.createElement('canvas').getContext('webgl') ||
+                 document.createElement('canvas').getContext('experimental-webgl');
+        if (gl) {
+          var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+          if (dbg) return gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '';
+        }
+      } catch (_) {}
+      return '';
+    }
+
+    function getUADataBrandVersion() {
+      try {
+        if (navigator.userAgentData && navigator.userAgentData.brands) {
+          for (var i = 0; i < navigator.userAgentData.brands.length; i++) {
+            var b = navigator.userAgentData.brands[i];
+            if (b.brand === 'Google Chrome' || b.brand === 'Chromium' || b.brand === 'Microsoft Edge') {
+              return parseInt(b.version, 10) || 0;
+            }
+          }
+        }
+      } catch (_) {}
+      return 0;
+    }
+
+    // Swap the spinner for the checkmark while the redirect loads. Only the
+    // "pass" action reaches this — every other action sends the visitor on to
+    // a further challenge, not the site.
+    function showDone() {
+      document.getElementById('state-checking').classList.add('hidden');
+      document.getElementById('state-done').classList.remove('hidden');
+      document.title = 'Loupe \u2014 Verified';
+    }
+
+    function doSubmit() {
+      if (fp) fp.worker = (pow && pow.nav) || null;
+      var sig = {
+        webdriver:            !!navigator.webdriver,
+        automationArtifact:   hasAutomationArtifact(AUTOMATION_ARTIFACTS),
+        screenW:              screen.width,
+        screenH:              screen.height,
+        colorDepth:           screen.colorDepth,
+        outerWidth:           window.outerWidth,
+        outerHeight:          window.outerHeight,
+        innerHeight:          window.innerHeight,
+        platform:             navigator.platform,
+        language:             navigator.language || '',
+        languages:            (navigator.languages
+                                 ? Array.prototype.join.call(navigator.languages, ',')
+                                 : navigator.language || ''),
+        languageInconsistent: checkLanguageInconsistency(),
+        platformTzMismatch:   checkPlatformTzMismatch(),
+        hardwareConcurrency:  navigator.hardwareConcurrency !== undefined
+                                ? navigator.hardwareConcurrency : null,
+        deviceMemory:         navigator.deviceMemory,
+        maxTouchPoints:       navigator.maxTouchPoints || 0,
+        webglRenderer:        getWebGLRenderer(),
+        hasUaData:            !!(navigator.userAgentData),
+        uaDataBrandVersion:   getUADataBrandVersion(),
+        webdriverPropPresent: ('webdriver' in navigator),
+        hasWindowChrome:      !!window.chrome,
+        innerWidth:           window.innerWidth,
+        devicePixelRatio:     window.devicePixelRatio || 0,
+        tzOffsetMismatch:      checkTzOffsetMismatch(),
+        canvasBlank:           !canvasHasContent(),
+        permissionConflict:    permConflict,
+        nativeFnTamperedCount: countTamperedNatives(NATIVE_FN_NAMES),
+        rafVariance:          variance(rafIntervals),
+        rafHidden:            pageWasHidden,
+        visibilityState:      document.visibilityState,
+        pageOpenMs:           Date.now() - startTime,
+        powMs:                pow ? pow.ms : -1,
+        fp:                   fp,
+      };
+      var proof = LoupeProof.measure(PROOF);
+      sig.proofRects = proof.rects;
+      sig.proofColor = proof.color;
+      if (pow) sig.lumen = pow.answer;
+
+      fetch(endpoint, {
+        method:      'POST',
+        headers:     { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:        'token=' + encodeURIComponent(PROOF.id) +
+                     '&sealed=' + encodeURIComponent(LoupeProof.seal(PROOF, sig)) +
+                     '&return=' + encodeURIComponent(returnURL),
+        credentials: 'same-origin',
+      }).then(function (resp) {
+        return resp.json();
+      }).then(function (data) {
+        if (data && data.url) {
+          if (data.action === 'pass') {
+            showDone();
+            window.location.href = data.url;
+          } else {
+            window.location.href = data.url;
+          }
+        }
+      }).catch(function () {
+        window.location.href = challengePath + '?return=' + encodeURIComponent(returnURL);
+      });
+    }
+
+    var permConflict = false;
+    checkNotificationPermConflict().then(function (v) { permConflict = v; });
+
+    // Submit as soon as the rAF loop finishes (~250ms at 60fps) and Lumen
+    // is solved. The 500ms cap covers slow/throttled rAF; Lumen only
+    // takes longer for a client whose IP carries pressure, which
+    // pays proportionally more, and is capped at 20s. The permission check above runs
+    // fully in the background: doSubmit reads whatever value permConflict
+    // holds at the moment it actually runs, so a slow or unsupported
+    // Permissions API can never add latency here — it can only fail to
+    // contribute a value in time, in which case permConflict simply stays
+    // at its safe default of false.
+    Promise.all([
+      Promise.race([
+        rafReady,
+        new Promise(function (res) { setTimeout(res, 500); }),
+      ]),
+      Promise.race([
+        powDone,
+        new Promise(function (res) { setTimeout(res, 20000); }),
+      ]),
+      Promise.race([
+        fpDone,
+        new Promise(function (res) { setTimeout(res, 600); }),
+      ]),
+    ]).then(doSubmit);
+  }());
+  </script>
+
+</body>
+</html>
