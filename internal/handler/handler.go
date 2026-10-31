@@ -427,6 +427,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A probe of an exploit path costs reputation whatever happens next:
+	// cleared, rule-blocked or blocked for its User-Agent.
+	h.recordExploitProbe(r, ip)
+
 	// The operator's rules (rules.yaml) run before everything else, so an
 	// allow rule skips every check and a block rule also covers public paths
 	// and clients holding a clearance cookie. Private addresses never reach
@@ -545,6 +549,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// its events show which bot it pretended or turned out to be.
 	if d := h.classifyBot(ip, r.UserAgent()); d.Bot != nil {
 		r = r.WithContext(context.WithValue(r.Context(), botClaimKey{}, d))
+		h.recordSpoofPressure(r, d)
 		switch d.Action {
 		case bots.Allow:
 			log.Printf("ALLOW verified_bot=%s via=%q ip=%s ua=%q", d.Bot.ID, d.Method, ip, r.UserAgent())
@@ -571,6 +576,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if api == nil && isKnownBotUA(r.UserAgent(), h.badBotUAs) || api != nil && isScannerUA(r.UserAgent(), h.badBotUAs) {
 		log.Printf("BLOCK bot_ua ip=%s ua=%q path=%s", ip, r.UserAgent(), r.URL.Path)
 		h.emit(h.newEvent(r, h.ipKey(r), 0, "", "BLOCK", "bot_ua", 0))
+		h.recordBlockPressure(r, botUAPressure(r.UserAgent()))
 		h.serveBlocked(w, r)
 		return
 	}

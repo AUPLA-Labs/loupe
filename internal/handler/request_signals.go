@@ -53,14 +53,10 @@ func reflexRequestScore(r *http.Request, exploitPaths []string) (score int, reas
 		add(2, "no_accept_language")
 	}
 
-	clean, anomalies := canonicalPath(r)
-	lowPath := strings.ToLower(clean)
-	for _, p := range exploitPaths {
-		if p != "" && strings.Contains(lowPath, strings.ToLower(p)) {
-			add(4, "exploit_path")
-			break
-		}
+	if matchesExploitPath(r, exploitPaths) {
+		add(4, "exploit_path")
 	}
+	_, anomalies := canonicalPath(r)
 
 	// Encoding tricks in the path: +3 each, at most +6. Scored, never
 	// blocked on their own; a rule on anomalies can block them.

@@ -44,6 +44,22 @@ const (
 	// BehaviourAnomaly: a cleared client navigated like a script
 	// (behaviour.enforce), recorded on the IP.
 	BehaviourAnomaly
+	// The block-pressure events below are recorded on the IP alone, at most
+	// once per IP and event per window (RecordIPOnce): each is evidence
+	// about one address, and a scanner sends hundreds of them a minute.
+	//
+	// ScannerUA: a built-in scanner or automation User-Agent (sqlmap,
+	// nuclei, headless…) that no real browser sends.
+	ScannerUA
+	// ClientUA: any other bot_ua block (HTTP client libraries, an empty
+	// User-Agent, the operator's own patterns): a script, often harmless.
+	ClientUA
+	// SpoofedBot: claims to be a verifiable bot from an address that bot's
+	// operator doesn't use.
+	SpoofedBot
+	// ExploitProbe: requested one of the operator's exploit paths
+	// (hardening.exploit_paths), with or without a clearance.
+	ExploitProbe
 )
 
 var increments = map[Event]float64{
@@ -56,6 +72,10 @@ var increments = map[Event]float64{
 	KeyRotation:         5,
 	BuildConclusive:     2,
 	BehaviourAnomaly:    3,
+	ScannerUA:           5,
+	ClientUA:            1,
+	SpoofedBot:          5,
+	ExploitProbe:        8,
 }
 
 // Floors are the pressure thresholds that raise the challenge tier.
@@ -94,7 +114,15 @@ type Store struct {
 	// them would only carry pressure for keys that are about to vanish.
 	device map[string]*entry
 	build  map[string]*entry
+	// recent is when RecordIPOnce last applied each (IP, event), for its
+	// throttle. Not snapshotted: it only matters for a minute or so.
+	recent map[recentKey]time.Time
 	cfg    Config
+}
+
+type recentKey struct {
+	ip string
+	ev Event
 }
 
 func New(cfg Config) *Store {
@@ -118,6 +146,7 @@ func New(cfg Config) *Store {
 		asn:    make(map[uint]*entry),
 		device: make(map[string]*entry),
 		build:  make(map[string]*entry),
+		recent: make(map[recentKey]time.Time),
 		cfg:    cfg,
 	}
 	if cfg.SnapshotPath != "" {
@@ -169,6 +198,11 @@ func (s *Store) evict() {
 				}
 			}
 		}
+		for k, at := range s.recent {
+			if now.Sub(at) > time.Hour {
+				delete(s.recent, k)
+			}
+		}
 		s.mu.Unlock()
 	}
 }
@@ -186,6 +220,25 @@ func (s *Store) Record(ipKey string, asn uint, ev Event) {
 	if asn != 0 {
 		s.apply(s.asnEntryLocked(asn), now, ev)
 	}
+}
+
+// RecordIPOnce applies ev to ipKey alone (never its ASN), unless the same
+// event was already applied to ipKey within window. It reports whether it
+// applied. Throttling keeps a burst of blocked requests to one increment.
+func (s *Store) RecordIPOnce(ipKey string, ev Event, window time.Duration) bool {
+	if ipKey == "" {
+		return false
+	}
+	now := time.Now()
+	k := recentKey{ipKey, ev}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if at, ok := s.recent[k]; ok && now.Sub(at) < window {
+		return false
+	}
+	s.recent[k] = now
+	s.apply(s.ipEntryLocked(ipKey), now, ev)
+	return true
 }
 
 // RecordDevice applies ev to a device cluster key; RecordBuild to a build
