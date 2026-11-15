@@ -31,6 +31,7 @@ type Updater struct {
 
 	PublicKeys []ed25519.PublicKey // required
 	MaxAge     time.Duration       // default 7 days
+	StaleAfter time.Duration       // still used but flagged after this; default 2 days
 
 	now func() time.Time // for tests
 
@@ -39,6 +40,7 @@ type Updater struct {
 	unauthorized bool      // the server refused token
 	fetchedAt    time.Time // last 200 or 304
 	lastErr      string
+	staleWarned  bool // Run has logged the current stale spell
 	kick         chan struct{}
 }
 
@@ -47,7 +49,10 @@ var ErrNoKeys = errors.New("aupldb: no public keys configured to verify files wi
 
 const (
 	defaultMaxAge = 7 * 24 * time.Hour
-	maxClockSkew  = time.Hour
+	// AUPLA builds twice a day, so two days old means builds have been
+	// failing for a while, well before MaxAge drops the file.
+	defaultStaleAfter = 2 * 24 * time.Hour
+	maxClockSkew      = time.Hour
 )
 
 func (u *Updater) clock() time.Time {
@@ -62,6 +67,34 @@ func (u *Updater) maxAge() time.Duration {
 		return u.MaxAge
 	}
 	return defaultMaxAge
+}
+
+func (u *Updater) staleAfter() time.Duration {
+	if u.StaleAfter > 0 {
+		return u.StaleAfter
+	}
+	return defaultStaleAfter
+}
+
+// stale reports whether the database in use is older than StaleAfter.
+// A file past MaxAge isn't in use, so it isn't stale but missing.
+func (u *Updater) stale() (*DB, bool) {
+	db := u.DB()
+	return db, db != nil && u.clock().Sub(db.BuiltAt) > u.staleAfter()
+}
+
+// warnIfStale logs once when the database goes stale, so a refresh that keeps
+// answering "nothing newer" doesn't hide that AUPLA's builds have stopped.
+func (u *Updater) warnIfStale(logf func(string, ...any)) {
+	db, stale := u.stale()
+	u.mu.Lock()
+	warn := stale && !u.staleWarned
+	u.staleWarned = stale
+	u.mu.Unlock()
+	if warn {
+		logf("aupldb: warning: the database is %s old (built %s) and no newer build is available; it stops being used after %s",
+			u.clock().Sub(db.BuiltAt).Round(time.Hour), db.BuiltAt.Format(time.RFC3339), u.maxAge())
+	}
 }
 
 // accept applies the signature and trust rules to db, a candidate to
@@ -251,6 +284,7 @@ func (u *Updater) Run(ctx context.Context) {
 			db := u.db.Load()
 			logf("aupldb: installed build of %s (%s)", db.BuiltAt.Format(time.RFC3339), db.SHA256[:16])
 		}
+		u.warnIfStale(logf)
 		select {
 		case <-ctx.Done():
 			return
@@ -283,6 +317,7 @@ type Status struct {
 	URL        string    `json:"url"`
 	NeedsToken bool      `json:"needs_token"` // the AUPLA terms haven't been accepted, or the token was revoked
 	BuiltAt    time.Time `json:"built_at,omitzero"`
+	Stale      bool      `json:"stale,omitempty"` // in use, but older than StaleAfter
 	SHA256     string    `json:"sha256,omitempty"`
 	FetchedAt  time.Time `json:"fetched_at,omitzero"`
 	LastError  string    `json:"last_error,omitempty"`
@@ -294,6 +329,7 @@ func (u *Updater) Status() Status {
 	u.mu.Unlock()
 	if db := u.db.Load(); db != nil {
 		s.BuiltAt, s.SHA256 = db.BuiltAt, db.SHA256
+		_, s.Stale = u.stale()
 		if u.DB() == nil && s.LastError == "" {
 			s.LastError = fmt.Sprintf("the database is older than %s, so it is not used until a newer build arrives", u.maxAge())
 		}

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -225,5 +226,48 @@ func TestUpdaterTrust(t *testing.T) {
 	}
 	if st := u.Status(); st.SHA256 == "" || !strings.Contains(st.LastError, "older than") {
 		t.Errorf("Status of a stale file = %+v", st)
+	}
+}
+
+// TestUpdaterStale: a build older than StaleAfter is still used but flagged,
+// and Run's warning is logged once per stale spell, not every refresh.
+func TestUpdaterStale(t *testing.T) {
+	file := testFile(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(file) }))
+	defer srv.Close()
+	u := &Updater{URL: srv.URL, PublicKeys: TestPublicKeys}
+	u.SetToken("tok")
+	if _, err := u.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var logs []string
+	logf := func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) }
+
+	u.warnIfStale(logf)
+	if st := u.Status(); st.Stale || len(logs) != 0 {
+		t.Fatalf("fresh build: Stale %v, logs %q", st.Stale, logs)
+	}
+
+	u.now = func() time.Time { return time.Now().Add(3 * 24 * time.Hour) } // past the 2-day default
+	u.warnIfStale(logf)
+	u.warnIfStale(logf)
+	if st := u.Status(); !st.Stale || st.LastError != "" || u.DB() == nil {
+		t.Fatalf("3-day-old build: %+v, in use %v", st, u.DB() != nil)
+	}
+	if len(logs) != 1 || !strings.Contains(logs[0], "warning") {
+		t.Fatalf("want one warning, got %q", logs)
+	}
+
+	u.now = nil // a fresh build again, then stale again: warns again
+	u.warnIfStale(logf)
+	u.now = func() time.Time { return time.Now().Add(3 * 24 * time.Hour) }
+	u.warnIfStale(logf)
+	if len(logs) != 2 {
+		t.Fatalf("want a second warning after recovering, got %q", logs)
+	}
+
+	u.now = func() time.Time { return time.Now().Add(8 * 24 * time.Hour) } // past MaxAge: an error, not "stale"
+	if st := u.Status(); st.Stale || st.LastError == "" {
+		t.Errorf("8-day-old build: %+v", st)
 	}
 }
